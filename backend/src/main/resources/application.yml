@@ -1,0 +1,123 @@
+spring:
+  application:
+    name: dedea
+
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/db_dedea?useSSL=false&serverTimezone=America/Lima&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+        jdbc:
+          batch_size: 50
+          order_inserts: true
+          order_updates: true
+
+  jackson:
+    default-property-inclusion: non_null
+    time-zone: America/Lima
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid, email, profile
+          facebook:
+            client-id: ${FACEBOOK_CLIENT_ID}
+            client-secret: ${FACEBOOK_CLIENT_SECRET}
+            scope: email, public_profile
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          facebook:
+            authorization-uri: https://www.facebook.com/v21.0/dialog/oauth
+            token-uri: https://graph.facebook.com/v21.0/oauth/access_token
+            user-info-uri: https://graph.facebook.com/me?fields=id,name,email
+            user-name-attribute: id
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+# Además de la consola, escribe a un archivo para poder revisarlo sin depender
+# de la ventana del IDE (útil para depurar en conjunto).
+logging:
+  file:
+    name: logs/dedea.log
+
+app:
+  news-api:
+    key: ${NEWS_API_KEY}
+    url: https://gnews.io/api/v4
+  gemini:
+    key: ${GEMINI_API_KEY}
+    url: https://generativelanguage.googleapis.com
+    # Vertex AI sirve los MISMOS modelos por otra puerta, y es la unica que acepta el credito
+    # de bienvenida de Google Cloud (la Developer API lo tiene excluido, ver CLAUDE.md 10.26).
+    # Con enabled=false se usa la clave de API de siempre; no hace falta borrar nada.
+    # Requiere credenciales ADC: gcloud auth application-default login
+    vertex:
+      enabled: true
+      project: project-42a112e5-9207-4822-89f
+      location: global
+  scheduler:
+    cron: "0 0 8,20 * * *"
+    # Revisión de imágenes por bloqueo anti-hotlinking (WebScraperClient.pareceBloqueoAntiHotlinking):
+    # todos los días a las 7:00, antes de la carga de noticias de las 8:00.
+    cron-imagenes: "0 0 7 * * *"
+  ngram:
+    umbral-error: 0.30
+    min-intentos: 5
+
+  # Clave secreta para el endpoint /force-sync.
+  # Sin valor por defecto a propósito: si no defines ADMIN_SYNC_KEY, el arranque falla
+  # en vez de correr con una clave débil conocida.
+  admin:
+    sync-key: ${ADMIN_SYNC_KEY}
+
+  # Firma del JWT propio (no la key de Google/Facebook). Genera una tuya con, por ejemplo:
+  # openssl rand -base64 48   →   pégala como JWT_SECRET. Mínimo 32 caracteres, si no el
+  # arranque falla (JwtService la usa para HMAC-SHA256).
+  jwt:
+    secret: ${JWT_SECRET}
+
+  # A dónde redirige el backend después de un login OAuth exitoso.
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+
+  security:
+    # true en producción (Railway sirve por HTTPS, la cookie debe llevar el flag Secure).
+    # false en local porque http://localhost no tiene TLS y el navegador descartaría la cookie.
+    cookie-secure: ${COOKIE_SECURE:false}
+
+  cors:
+    # Orígenes que pueden hablar con la API. En producción hay que definir CORS_ORIGENES con
+    # el dominio real, separando por coma si hay más de uno; si no, el navegador va a bloquear
+    # cada petición del frontend y el error no dirá que falta el dominio.
+    # OJO: con allowCredentials(true) NO se puede usar "*" — tienen que ser explícitos.
+    origenes: ${CORS_ORIGENES:http://localhost:5173}
+
+  # Configuración del pool de threads para procesamiento asíncrono de noticias
+  # core-pool-size: hilos siempre activos
+  # max-pool-size: máximo bajo carga alta
+  # queue-capacity: tareas en espera si todos los hilos están ocupados
+  async:
+    core-pool-size: 2
+    max-pool-size: 4
+    queue-capacity: 10
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
