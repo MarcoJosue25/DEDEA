@@ -1,0 +1,7 @@
+# Saltos de línea normalizados a LF dentro del repositorio.
+* text=auto
+
+# Scripts que exigen un formato concreto
+*.sh    text eol=lf
+*.cmd   text eol=crlf
+*.bat   text eol=crlf

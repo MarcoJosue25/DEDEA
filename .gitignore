@@ -1,0 +1,29 @@
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# Compilados y dependencias
+target/
+node_modules/
+dist/
+
+# Logs y archivos generados en ejecución
+logs/
+*.log
+*.log.gz
+uploads/
+
+# Variables de entorno (las plantillas .env.example sí se suben)
+.env
+.env.*
+!.env.example
+
+# Generado por Spring Initializr
+HELP.md
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
