@@ -8,7 +8,7 @@ const Footer = () => {
           habilitar el login a todo el mundo. */}
       <div className="mx-auto flex max-w-5xl flex-col items-center px-6 py-6 md:items-start">
         <span className="text-lg font-bold uppercase tracking-[0.08em] text-gris-texto">Dedea</span>
-        <span className="mt-1 text-xs text-gris-texto/60">© 2026 Dedea Flow State Typing</span>
+        <span className="mt-1 text-xs text-gris-texto/60">© 2026 DEDEA</span>
       </div>
     </footer>
   );
