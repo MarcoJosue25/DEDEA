@@ -723,18 +723,22 @@ public final class ContenidoCurado {
            tilde" (orden 17). Sin esas siete consonantes (b c m n v x z) el vocabulario
            natural es muy limitado —nada de "en", "con", "también"— así que salen todas
            del mismo registro de vida diaria y oficios que ya tenía el banco viejo; no hay
-           margen para variar más de tema sin salirse de las dos filas. */
+           margen para variar más de tema sin salirse de las dos filas.
+
+           SIN PUNTO FINAL, y no es un descuido: el punto se enseña recién en "z x" (orden
+           24). Lo detectó AuditoriaFugasBasicoTest el 18-sep-2026 — la reescritura del
+           11-sep había dejado un punto al final de las diez. */
         public static final List<String> ORACIONES_BASICO_DOS_FILAS = List.of(
-            "El pastor guardó su tejido hasta que llegó el otoño y luego lo dejó listo para el taller de la sastre.",
-            "El profesor salió tarde de la sala de estudio y se quedó a apagar el farol hasta que llegó la fiesta.",
-            "Su tía guardó la olla y la sopa hasta que llegó la hora justa de la fiesta que esperará todo el taller.",
-            "El perro sigue a su dueño hasta la puerta y luego se queda quieto al lado del farol de la sala.",
-            "Aquel día la aldea guardó su agua hasta que llegó la hora justa de regar el taller y la sala.",
-            "El sastre arregló la puerta del taller y guardó su tela hasta que llegó la hora de la fiesta de la aldea.",
-            "El hijo guardó su reloj y salió justo a la hora hasta que llegó a la sala de estudio de la aldea.",
-            "Su hija guardó la toalla y la olla hasta que llegó su tía a la puerta de la sala.",
-            "El pastor salió a pasear su perro hasta la puerta de la aldea y luego guardó la olla y la sopa lista.",
-            "La sastre guardó su tela y su hilo hasta que llegó la hora justa para el traje de la fiesta.");
+            "El pastor guardó su tejido hasta que llegó el otoño y luego lo dejó listo para el taller de la sastre",
+            "El profesor salió tarde de la sala de estudio y se quedó a apagar el farol hasta que llegó la fiesta",
+            "Su tía guardó la olla y la sopa hasta que llegó la hora justa de la fiesta que esperará todo el taller",
+            "El perro sigue a su dueño hasta la puerta y luego se queda quieto al lado del farol de la sala",
+            "Aquel día la aldea guardó su agua hasta que llegó la hora justa de regar el taller y la sala",
+            "El sastre arregló la puerta del taller y guardó su tela hasta que llegó la hora de la fiesta de la aldea",
+            "El hijo guardó su reloj y salió justo a la hora hasta que llegó a la sala de estudio de la aldea",
+            "Su hija guardó la toalla y la olla hasta que llegó su tía a la puerta de la sala",
+            "El pastor salió a pasear su perro hasta la puerta de la aldea y luego guardó la olla y la sopa lista",
+            "La sastre guardó su tela y su hilo hasta que llegó la hora justa para el traje de la fiesta");
 
         /* NUEVO el 11-sep-2026, para "Contrarreloj: las tres filas" (orden 35). Antes ese
            nodo usaba `"patron":"^[a-zñ]+$"` — cualquier palabra del diccionario — y salía
