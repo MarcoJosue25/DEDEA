@@ -1,7 +1,7 @@
 import { api } from './client';
 import type {
   GenericResponse, StatsResponse, DebilidadesResponse, ProgresoNgramResponse,
-  ProgresoTemporalResponse, RecordsResponse, TeclasLentasResponse, AgrupacionProgreso,
+  ProgresoTemporalResponse, RecordsResponse, AgrupacionProgreso,
   ItemDebilidad, RivalSesionResponse,
 } from '../types';
 
@@ -45,13 +45,8 @@ export const obtenerMapaDeTeclas = (): Promise<ItemDebilidad[]> => {
 };
 
 /* Convierte una sesión pasada en rival. Devuelve null cuando esa sesión no sirve: no es
-   tuya, es de Curso o del Área de Entrenamiento, o la noticia original ya no existe. */
+   tuya, no es de Noticias ni de IA, o la noticia original ya no existe. */
 export const obtenerRivalDeSesion = (sesionId: number): Promise<RivalSesionResponse | null> => {
   return api.get<GenericResponse<RivalSesionResponse | null>>(`/stats/rival/${sesionId}`)
     .then((res) => res.data.data ?? null);
-};
-
-export const obtenerTeclasLentas = (): Promise<TeclasLentasResponse> => {
-  return api.get<GenericResponse<TeclasLentasResponse>>('/stats/teclas-lentas')
-    .then((res) => res.data.data);
 };

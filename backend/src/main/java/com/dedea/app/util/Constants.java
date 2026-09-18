@@ -291,15 +291,6 @@ public final class Constants {
     // Agregamos la ventana expandida para usuarios inconstantes
     public static final int DIAS_ANALISIS_HISTORICO_BASE = 7;
     public static final int DIAS_ANALISIS_HISTORICO_EXPANDIDO = 15;
-    /* --- TECLAS MÁS LENTAS ---
-       El tiempo por tecla se promedia sobre pocas muestras, así que una sola pausa larga
-       (te distrajiste, te fuiste a tomar agua) puede coronar a una tecla como "la más
-       lenta". Exigir un mínimo de pulsaciones hace que el promedio signifique algo. */
-    public static final int MIN_PULSACIONES_TECLA_LENTA = 10;
-
-    // Alcanza para pintar el mapa de calor; más allá los tiempos son indistinguibles.
-    public static final int LIMITE_TECLAS_LENTAS = 15;
-
     /* Por encima de este WPM la marca deja de ser creíble y se registra para revisar.
 
        Los récords mundiales sostenidos rondan las 200-220 palabras por minuto, así que 250

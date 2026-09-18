@@ -475,32 +475,6 @@ public class StatsServiceImpl implements StatsService {
         return maxima;
     }
 
-    /**
-     * obtenerTeclasLentas: EL OTRO MODO DEL MAPA DE CALOR
-     * Fallar poco no significa escribir rápido. Una tecla lejana puede tener 0% de error y
-     * aun así ser la que te frena, porque cada vez que aparece hay que buscarla. Este
-     * cálculo deriva el tiempo entre pulsaciones consecutivas de sesion_teclas_eventos.
-     */
-    @Override
-    public TeclasLentasResponse obtenerTeclasLentas(String identificadorTemporal) {
-        log.info("[STATS] Calculando teclas más lentas para: {}", abreviar(identificadorTemporal));
-
-        List<TeclasLentasResponse.TeclaLenta> teclas =
-                sesionRepository.obtenerTeclasMasLentas(
-                                identificadorTemporal,
-                                Constants.MIN_PULSACIONES_TECLA_LENTA,
-                                Constants.LIMITE_TECLAS_LENTAS)
-                        .stream()
-                        .map(t -> new TeclasLentasResponse.TeclaLenta(
-                                t.getTecla(), t.getMsPromedio(), t.getPulsaciones()))
-                        .collect(Collectors.toList());
-
-        /* La pantalla necesita distinguir "escribes parejo" de "todavía no hay datos": los
-           eventos tecla a tecla solo existen desde que se añadió ese registro, así que un
-           usuario antiguo puede tener cientos de sesiones y cero eventos. */
-        return new TeclasLentasResponse(!teclas.isEmpty(), teclas);
-    }
-
     // Los logs no deberían guardar el identificador completo (es el UUID permanente de la
     // cuenta para usuarios logueados). Con los primeros 8 caracteres alcanza para rastrear
     // un caso en desarrollo sin exponer el identificador completo en los logs del servidor.

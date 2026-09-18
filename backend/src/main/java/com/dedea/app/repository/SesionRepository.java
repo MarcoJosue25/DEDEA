@@ -1,7 +1,6 @@
 package com.dedea.app.repository;
 
 import com.dedea.app.dto.ProgresoTemporalProyeccion;
-import com.dedea.app.dto.TeclaLentaProyeccion;
 import com.dedea.app.model.Sesion;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -116,30 +115,6 @@ public interface SesionRepository extends JpaRepository<Sesion, Integer> {
             + "WHERE identificador_temporal = :uuid "
             + "ORDER BY 1 DESC", nativeQuery = true)
     List<java.time.LocalDate> obtenerDiasConActividad(@Param("uuid") String uuid);
-
-    /* Teclas más LENTAS (distinto de las más falladas: puedes acertar siempre una tecla
-       y aun así tardar el triple en encontrarla).
-
-       El tiempo por pulsación no está guardado como tal: se deriva restando el instante
-       de cada evento con el del anterior de la MISMA sesión (LAG). Se descartan los
-       deltas fuera de 20–3000 ms: por debajo son rebotes y por encima son pausas en las
-       que el usuario se fue, no la dificultad de la tecla. */
-    @Query(value = "SELECT tecla AS tecla, "
-            + "ROUND(AVG(delta)) AS msPromedio, COUNT(*) AS pulsaciones FROM ("
-            + "  SELECT e.tecla AS tecla, "
-            + "         e.tiempo_desde_inicio_ms - LAG(e.tiempo_desde_inicio_ms) "
-            + "           OVER (PARTITION BY e.sesion_id ORDER BY e.orden_secuencia) AS delta "
-            + "  FROM sesion_teclas_eventos e "
-            + "  JOIN sesiones s ON s.id = e.sesion_id "
-            + "  WHERE s.identificador_temporal = :uuid"
-            + ") t "
-            + "WHERE delta BETWEEN 20 AND 3000 AND CHAR_LENGTH(tecla) = 1 "
-            + "GROUP BY tecla HAVING COUNT(*) >= :minPulsaciones "
-            + "ORDER BY msPromedio DESC LIMIT :limite", nativeQuery = true)
-    List<TeclaLentaProyeccion> obtenerTeclasMasLentas(
-            @Param("uuid") String uuid,
-            @Param("minPulsaciones") int minPulsaciones,
-            @Param("limite") int limite);
 
     /* --- Analítica del Curso POR NIVEL, separada de lo de arriba: lo global mezcla
        Noticias, IA y los tres niveles, y la pantalla de estadísticas del Curso necesita un

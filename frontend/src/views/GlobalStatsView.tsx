@@ -8,12 +8,11 @@ import SelectorApariencia from '../components/ui/SelectorApariencia';
 import { useApariencia } from '../core/apariencia/useApariencia';
 import {
   obtenerResumenGlobal, obtenerDebilidades, obtenerProgresoNgrams,
-  obtenerProgresoTemporal, obtenerRecords, obtenerTeclasLentas, obtenerMapaDeTeclas,
+  obtenerProgresoTemporal, obtenerRecords, obtenerMapaDeTeclas,
 } from '../api/statsApi';
 import type {
   StatsResponse, DebilidadesResponse, ItemDebilidad, ProgresoNgramResponse,
-  ProgresoTemporalResponse, RecordsResponse, TeclasLentasResponse, TeclaLenta,
-  AgrupacionProgreso,
+  ProgresoTemporalResponse, RecordsResponse, AgrupacionProgreso,
 } from '../types';
 
 const FILAS_TECLADO = [
@@ -68,48 +67,21 @@ const formatearFecha = (iso: string | null) => {
   return `${Number(partes[2])} ${MESES[Number(partes[1]) - 1]} ${partes[0]}`;
 };
 
-/* Color del mapa de calor. Las dos métricas usan tonos distintos a propósito: en rojo
-   "fallas mucho acá", en morado "te demoras acá". Con la misma escala para las dos,
-   cambiar de modo parecería un cambio de datos y no de pregunta. */
-const TONO_ERROR = '255, 0, 4';
-const TONO_LENTITUD = '191, 129, 255';
-
-/* La intensidad sale del VALOR, no del puesto en el ranking. Con una rampa de pasos
-   fijos, una lista de 15 teclas dejaba a las 11 últimas exactamente del mismo color y el
-   mapa solo distinguía el podio. Normalizar contra el mínimo y el máximo de la propia
-   lista hace que el degradado signifique algo.
-
-   El piso de 0.25 es para que la tecla menos intensa igual se distinga de una sin datos:
-   estar en la lista ya es información. */
-const intensidad = (valor: number, min: number, max: number) => {
-  const proporcion = max === min ? 1 : (valor - min) / (max - min);
-  return 0.25 + proporcion * 0.75;
-};
-
-/* "Sin datos" tiene que distinguirse de cualquier valor de la escala. Con el azul oscuro
-   de antes se confundía con la parada del 25% de error, así que una tecla que nunca has
-   pulsado lo suficiente se veía igual que una que fallas una de cada cuatro veces. Este
-   gris no tiene nada de azul ni de rojo: no pertenece a la escala. */
 /* Pulsaciones mínimas para que una tecla se coloree. Por debajo el porcentaje no
    significa nada: dos pulsaciones con las dos mal darían 100% y pintarían la tecla del
    rojo más crítico. El backend igual manda las teclas con pocos datos para poder mostrar
    el conteo real en el tooltip. */
 const MIN_PULSACIONES_MAPA = 15;
 
+/* "Sin datos" tiene que distinguirse de cualquier valor de la escala. Con el azul oscuro
+   de antes se confundía con la parada del 25% de error, así que una tecla que nunca has
+   pulsado lo suficiente se veía igual que una que fallas una de cada cuatro veces. Este
+   gris no tiene nada de azul ni de rojo: no pertenece a la escala. */
 const ESTILO_SIN_DATOS = {
   background: '#191D21',
   borderColor: 'rgba(255,255,255,0.06)',
   color: '#6B7378',
 };
-
-const estiloTecla = (tono: string, alfa: number | null) => alfa === null
-  ? ESTILO_SIN_DATOS
-  : {
-      background: `rgba(${tono}, ${alfa})`,
-      borderColor: `rgba(${tono}, ${Math.min(1, alfa + 0.2)})`,
-      // Sobre un fondo ya saturado el texto claro se pierde; recién ahí conviene invertirlo.
-      color: alfa > 0.55 ? '#04212A' : '#E6F1F7',
-    };
 
 /* --- Escala de color del mapa de fallos ---
 
@@ -280,7 +252,6 @@ const GlobalStatsView = () => {
   const [debilidades, setDebilidades] = useState<DebilidadesResponse | null>(null);
   const [progreso, setProgreso] = useState<ProgresoNgramResponse | null>(null);
   const [records, setRecords] = useState<RecordsResponse | null>(null);
-  const [teclasLentas, setTeclasLentas] = useState<TeclasLentasResponse | null>(null);
   /* El mapa de calor NO usa debilidades.peoresTeclas: aquel es el top 5 que consume
      Gemini, con un mínimo de 2 pulsaciones, y sus cinco ganadoras eran símbolos con dos
      intentos al 100% — ninguno en la grilla, así que el teclado salía entero "sin
@@ -289,28 +260,24 @@ const GlobalStatsView = () => {
   const [serie, setSerie] = useState<ProgresoTemporalResponse | null>(null);
   const [cargando, setCargando] = useState(true);
 
-  /* Los dos conmutadores del panel central: qué se muestra (curva o teclado) y, dentro
-     del teclado, qué métrica pinta las teclas. */
+  // El conmutador del panel central: la curva de progreso o el mapa de calor del teclado.
   const [vista, setVista] = useState<'progreso' | 'teclado'>('progreso');
-  const [metricaTeclado, setMetricaTeclado] = useState<'fallos' | 'lentitud'>('fallos');
   const [agrupacion, setAgrupacion] = useState<AgrupacionProgreso>('dia');
 
   useEffect(() => {
     const cargarDatos = async () => {
       try {
-        const [resStats, resDebilidades, resProgreso, resRecords, resLentas, resMapa] = await Promise.all([
+        const [resStats, resDebilidades, resProgreso, resRecords, resMapa] = await Promise.all([
           obtenerResumenGlobal(),
           obtenerDebilidades(),
           obtenerProgresoNgrams(),
           obtenerRecords(),
-          obtenerTeclasLentas(),
           obtenerMapaDeTeclas(),
         ]);
         setStats(resStats);
         setDebilidades(resDebilidades);
         setProgreso(resProgreso);
         setRecords(resRecords);
-        setTeclasLentas(resLentas);
         setMapaTeclas(resMapa);
       } catch (err) {
         console.error(err);
@@ -360,26 +327,14 @@ const GlobalStatsView = () => {
 
   /* ======================= APARIENCIA OSCURA ======================= */
   if (esOscuro) {
-    const listaLentas = teclasLentas?.teclas ?? [];
-    const lentasPorTecla = new Map<string, TeclaLenta>(
-      listaLentas.map((t) => [t.tecla.toUpperCase(), t]),
-    );
     // El mapa se pinta con su propia consulta; `debilidades` sigue alimentando las listas
     // de bigramas y trigramas, que sí quieren el top 5.
     const peores = mapaTeclas;
 
-    /* Los extremos se calculan SOLO sobre las teclas que el teclado dibuja. La tecla más
-       lenta del historial suele ser un símbolo como "[", que no está en la grilla: si
-       marcara el techo de la escala, todas las letras visibles quedarían apretadas contra
-       el extremo bajo y el degradado no se notaría.
-
-       Esto ya solo aplica a la métrica de LENTITUD. Los fallos pasaron a una escala
-       absoluta (colorPorError), donde un 40% se ve igual de grave tengas el historial que
-       tengas — que es lo que uno espera de un porcentaje. */
+    /* El color sale del porcentaje ABSOLUTO (colorPorError), no de comparar las teclas
+       entre sí: un 40% se ve igual de grave tengas el historial que tengas — que es lo que
+       uno espera de un porcentaje. */
     const enGrilla = (t: string) => LETRAS_GRILLA.has(t.toUpperCase());
-    const msLentos = listaLentas.filter(t => enGrilla(t.tecla)).map((t) => t.msPromedio);
-    const minMs = Math.min(...msLentos);
-    const maxMs = Math.max(...msLentos);
 
     /* Lo que la métrica encontró pero el teclado no puede pintar: símbolos, números y el
        espacio. Sin esto el panel se vería vacío mientras el dato sí existe — que es justo
@@ -394,17 +349,11 @@ const GlobalStatsView = () => {
        el ORDER BY de la consulta, este recorte seguiría mostrando cinco cualesquiera en
        vez de las cinco peores, y sería un error mudo. */
     const TOPE_FUERA_DE_GRILLA = 5;
-    const fueraDeGrilla = metricaTeclado === 'fallos'
-      ? peores.filter(t => !enGrilla(t.secuencia))
-          .slice()
-          .sort((a, b) => b.porcentajeError - a.porcentajeError)
-          .slice(0, TOPE_FUERA_DE_GRILLA)
-          .map(t => ({ tecla: t.secuencia, detalle: `${t.porcentajeError}% error` }))
-      : listaLentas.filter(t => !enGrilla(t.tecla))
-          .slice()
-          .sort((a, b) => b.msPromedio - a.msPromedio)
-          .slice(0, TOPE_FUERA_DE_GRILLA)
-          .map(t => ({ tecla: t.tecla, detalle: `${t.msPromedio} ms` }));
+    const fueraDeGrilla = peores.filter(t => !enGrilla(t.secuencia))
+      .slice()
+      .sort((a, b) => b.porcentajeError - a.porcentajeError)
+      .slice(0, TOPE_FUERA_DE_GRILLA)
+      .map(t => ({ tecla: t.secuencia, detalle: `${t.porcentajeError}% error` }));
 
     const datosSerie = (serie?.puntos ?? []).map((p) => ({
       etiqueta: formatearPeriodo(p.periodo, serie?.agrupacion ?? agrupacion),
@@ -494,9 +443,7 @@ const GlobalStatsView = () => {
               <p className="text-sm text-gris-texto">
                 {vista === 'progreso'
                   ? 'Promedio de tus noticias, textos con IA y ejercicios del curso.'
-                  : metricaTeclado === 'fallos'
-                    ? 'Las teclas más intensas son donde más fallas.'
-                    : 'Las teclas más intensas son las que más te frenan, aunque las aciertes.'}
+                  : 'Las teclas más intensas son donde más fallas.'}
               </p>
             </div>
             <Chips
@@ -572,117 +519,86 @@ const GlobalStatsView = () => {
             </>
           ) : (
             <>
-              <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-                <Chips
-                  opciones={[
-                    { id: 'fallos', nombre: 'Más falladas' },
-                    { id: 'lentitud', nombre: 'Más lentas' },
-                  ]}
-                  valor={metricaTeclado}
-                  onCambiar={setMetricaTeclado} />
-
-                <div className="flex items-center gap-3 text-[11px] font-bold text-gris-texto">
-                  <span>{metricaTeclado === 'fallos' ? 'Sin errores' : 'Ágil'}</span>
-                  {/* Degradado continuo, no bloques: el color de las teclas también lo es.
-                      En fallos reproduce las mismas paradas que la escala del teclado, con
-                      los cortes en el mismo sitio, para que la leyenda sirva para leer un
-                      color y no solo de adorno. */}
-                  <div className="h-2.5 w-24 rounded-full"
-                    style={{
-                      background: metricaTeclado === 'fallos'
-                        ? `linear-gradient(to right, ${PARADAS_ERROR
-                            .map(([p, c]) => `rgb(${c[0]},${c[1]},${c[2]}) ${p}%`)
-                            .join(', ')})`
-                        : `linear-gradient(to right, #0A141C, rgba(${TONO_LENTITUD}, 1))`,
-                    }} />
-                  <span>{metricaTeclado === 'fallos' ? 'Crítico' : 'Te frena'}</span>
-                </div>
+              <div className="mb-6 flex items-center justify-end gap-3 text-[11px] font-bold text-gris-texto">
+                <span>Sin errores</span>
+                {/* Degradado continuo, no bloques: el color de las teclas también lo es.
+                    Reproduce las mismas paradas que la escala del teclado, con los cortes en
+                    el mismo sitio, para que la leyenda sirva para leer un color y no solo de
+                    adorno. */}
+                <div className="h-2.5 w-24 rounded-full"
+                  style={{
+                    background: `linear-gradient(to right, ${PARADAS_ERROR
+                      .map(([p, c]) => `rgb(${c[0]},${c[1]},${c[2]}) ${p}%`)
+                      .join(', ')})`,
+                  }} />
+                <span>Crítico</span>
               </div>
 
-              {metricaTeclado === 'lentitud' && !teclasLentas?.datosSuficientes ? (
-                <div className="flex h-32 items-center justify-center px-6 text-center text-sm text-gris-texto">
-                  <p>
-                    Todavía no hay suficientes pulsaciones registradas para medir el ritmo.
-                    Practica una noticia completa y el teclado se llena.
-                  </p>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-2">
-                  {FILAS_TECLADO.map((fila, fi) => (
-                    <div key={fi} className="flex gap-1.5">
-                      {fila.map((tecla) => {
-                        const lenta = lentasPorTecla.get(tecla);
-                        const fallada = peores.find(t => t.secuencia.toUpperCase() === tecla);
+              <div className="flex flex-col items-center gap-2">
+                {FILAS_TECLADO.map((fila, fi) => (
+                  <div key={fi} className="flex gap-1.5">
+                    {fila.map((tecla) => {
+                      const fallada = peores.find(t => t.secuencia.toUpperCase() === tecla);
 
-                        const esFallos = metricaTeclado === 'fallos';
+                      /* El color sale del porcentaje absoluto con la escala de tres zonas
+                         (cian → oscuro → rojo). Con pocas pulsaciones el porcentaje no
+                         significa nada, así que la tecla no se colorea — pero el conteo
+                         sí se muestra. */
+                      const medible = fallada != null && fallada.totalIntentos >= MIN_PULSACIONES_MAPA;
 
-                        /* En fallos el color sale del porcentaje absoluto con la escala de
-                           tres zonas (cian → oscuro → rojo). En lentitud se mantiene la
-                           intensidad relativa: ahí no hay un "0 ms" que signifique
-                           perfecto, así que comparar contra el resto sí es lo correcto. */
-                        // Con pocas pulsaciones el porcentaje no significa nada, así que la
-                        // tecla no se colorea — pero el conteo sí se muestra.
-                        const medible = fallada != null && fallada.totalIntentos >= MIN_PULSACIONES_MAPA;
+                      const estilo = medible
+                        ? estiloTeclaPorError(fallada!.porcentajeError)
+                        : ESTILO_SIN_DATOS;
 
-                        const estilo = esFallos
-                          ? (medible
-                              ? estiloTeclaPorError(fallada!.porcentajeError)
-                              : estiloTecla(TONO_ERROR, null))
-                          : estiloTecla(TONO_LENTITUD,
-                              lenta ? intensidad(lenta.msPromedio, minMs, maxMs) : null);
+                      /* El detalle nunca dice solo "sin datos": distinguir "nunca la
+                         pulsaste" de "la pulsaste 3 veces" importa, porque en el segundo
+                         caso el dato existe y solo falta práctica para que valga. */
+                      const detalle = medible
+                        ? `${fallada!.porcentajeError}% de error · ${fallada!.totalIntentos} intentos`
+                        : fallada
+                          ? `${fallada.totalIntentos} intentos · pocos para medir`
+                          : '0 intentos registrados';
 
-                        /* El detalle nunca dice solo "sin datos": distinguir "nunca la
-                           pulsaste" de "la pulsaste 3 veces" importa, porque en el segundo
-                           caso el dato existe y solo falta práctica para que valga. */
-                        const detalle = esFallos
-                          ? (medible
-                              ? `${fallada!.porcentajeError}% de error · ${fallada!.totalIntentos} intentos`
-                              : fallada
-                                ? `${fallada.totalIntentos} intentos · pocos para medir`
-                                : '0 intentos registrados')
-                          : (lenta ? `${lenta.msPromedio} ms en promedio · ${lenta.pulsaciones} pulsaciones` : 'Sin datos de ritmo');
-
-                        return (
-                          <div key={tecla} className="group relative">
-                            <div
-                              className="key-cap flex items-center justify-center rounded-lg border text-xs font-bold transition-all"
-                              style={estilo}>
-                              {tecla}
-                            </div>
-
-                            {/* Tooltip propio en vez de `title`: el nativo tarda un segundo
-                                en aparecer y no se puede estilar. */}
-                            <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-white/10 bg-carta px-3 py-1.5 text-[11px] text-white shadow-xl group-hover:block">
-                              <span className="font-bold text-cian">{tecla}</span>
-                              <span className="ml-2 text-gris-texto">{detalle}</span>
-                            </div>
+                      return (
+                        <div key={tecla} className="group relative">
+                          <div
+                            className="key-cap flex items-center justify-center rounded-lg border text-xs font-bold transition-all"
+                            style={estilo}>
+                            {tecla}
                           </div>
-                        );
-                      })}
-                    </div>
-                  ))}
-                  <div className="mt-1 h-10 w-64 rounded-lg border border-vidrio-borde bg-carta" />
 
-                  {fueraDeGrilla.length > 0 && (
-                    <div className="mt-5 w-full border-t border-vidrio-borde pt-4">
-                      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-gris-texto">
-                        Fuera del teclado mostrado
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {fueraDeGrilla.map((t) => (
-                          <span key={t.tecla}
-                            className="flex items-center gap-2 rounded-lg border border-vidrio-borde bg-vidrio px-2.5 py-1">
-                            <span className="font-mono text-sm font-bold text-cian-suave">
-                              {t.tecla === ' ' ? '␣' : t.tecla}
-                            </span>
-                            <span className="text-[11px] tabular-nums text-gris-texto">{t.detalle}</span>
+                          {/* Tooltip propio en vez de `title`: el nativo tarda un segundo
+                              en aparecer y no se puede estilar. */}
+                          <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-white/10 bg-carta px-3 py-1.5 text-[11px] text-white shadow-xl group-hover:block">
+                            <span className="font-bold text-cian">{tecla}</span>
+                            <span className="ml-2 text-gris-texto">{detalle}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+                <div className="mt-1 h-10 w-64 rounded-lg border border-vidrio-borde bg-carta" />
+
+                {fueraDeGrilla.length > 0 && (
+                  <div className="mt-5 w-full border-t border-vidrio-borde pt-4">
+                    <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-gris-texto">
+                      Fuera del teclado mostrado
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {fueraDeGrilla.map((t) => (
+                        <span key={t.tecla}
+                          className="flex items-center gap-2 rounded-lg border border-vidrio-borde bg-vidrio px-2.5 py-1">
+                          <span className="font-mono text-sm font-bold text-cian-suave">
+                            {t.tecla === ' ' ? '␣' : t.tecla}
                           </span>
-                        ))}
-                      </div>
+                          <span className="text-[11px] tabular-nums text-gris-texto">{t.detalle}</span>
+                        </span>
+                      ))}
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
             </>
           )}
         </Tarjeta>

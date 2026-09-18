@@ -161,18 +161,6 @@ export interface RivalSesionResponse {
   progreso: SesionProgresoDTO[];
 }
 
-export interface TeclaLenta {
-  tecla: string;
-  msPromedio: number;
-  pulsaciones: number;
-}
-
-export interface TeclasLentasResponse {
-  // Distingue "escribes parejo" de "todavía no hay eventos guardados".
-  datosSuficientes: boolean;
-  teclas: TeclaLenta[];
-}
-
 export interface ItemDebilidad {
   secuencia: string;
   porcentajeError: number;

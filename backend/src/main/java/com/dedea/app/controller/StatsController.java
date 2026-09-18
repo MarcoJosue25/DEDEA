@@ -7,7 +7,6 @@ import com.dedea.app.dto.DebilidadesResponse;
 import com.dedea.app.dto.ProgresoTemporalResponse;
 import com.dedea.app.dto.RecordsResponse;
 import com.dedea.app.dto.RivalSesionResponse;
-import com.dedea.app.dto.TeclasLentasResponse;
 import com.dedea.app.security.IdentidadResolver;
 import com.dedea.app.service.StatsService;
 import jakarta.validation.constraints.Pattern;
@@ -117,21 +116,6 @@ public class StatsController {
         identificadorTemporal = identidadResolver.resolver(identificadorTemporal);
         RecordsResponse records = statsService.obtenerRecords(identificadorTemporal);
         return ResponseEntity.ok(GenericResponse.success("Récords y racha calculados", records));
-    }
-
-    /*GET /api/v1/stats/teclas-lentas
-     Segundo modo del mapa de calor: no dónde fallas, sino dónde te demoras.*/
-    @GetMapping("/teclas-lentas")
-    public ResponseEntity<GenericResponse<TeclasLentasResponse>> obtenerTeclasLentas(
-            @RequestHeader("X-Identificador-Temporal")
-            @Pattern(
-                    regexp = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
-                    message = "El identificador temporal debe ser un UUID válido"
-            ) String identificadorTemporal) {
-
-        identificadorTemporal = identidadResolver.resolver(identificadorTemporal);
-        TeclasLentasResponse teclas = statsService.obtenerTeclasLentas(identificadorTemporal);
-        return ResponseEntity.ok(GenericResponse.success("Teclas más lentas calculadas", teclas));
     }
 
     /* GET /api/v1/stats/mapa-teclas

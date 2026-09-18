@@ -9,8 +9,9 @@
      sobre lo que cuesta esa tecla, pero bastaría una sola para coronarla como "la más
      lenta" en el promedio.
 
-   El techo coincide con el de la consulta de teclas lentas del backend, que filtra los
-   deltas entre 20 y 3000 ms. */
+   El techo de 3000 ms es el mismo que usaba el análisis de teclas lentas, que se sacó del
+   primer lanzamiento. Estos tiempos se siguen guardando para que, cuando vuelva, ya haya
+   historial: si vuelve, el filtro de su consulta tiene que coincidir con este techo. */
 export const DELTA_MAX_MS = 3000;
 
 export const calcularDelta = (ahora: number, anterior: number): number => {

@@ -6,7 +6,6 @@ import com.dedea.app.dto.DebilidadesResponse;
 import com.dedea.app.dto.ProgresoTemporalResponse;
 import com.dedea.app.dto.RecordsResponse;
 import com.dedea.app.dto.RivalSesionResponse;
-import com.dedea.app.dto.TeclasLentasResponse;
 
 import java.util.List;
 
@@ -44,12 +43,6 @@ public interface StatsService {
      * 🏆 obtenerRecords: Mejores marcas y racha de días practicando.
      */
     RecordsResponse obtenerRecords(String identificadorTemporal);
-
-    /**
-     * 🐢 obtenerTeclasLentas: Las teclas que más te frenan, aunque no las falles.
-     * Alimenta el segundo modo del mapa de calor.
-     */
-    TeclasLentasResponse obtenerTeclasLentas(String identificadorTemporal);
 
     /**
      * ⌨️ obtenerMapaDeTeclas: las teclas para pintar el mapa de calor, que NO son las
