@@ -1,4 +1,19 @@
-import type { ProgresoEjercicioResponse } from '../../types';
+import type { NivelCurso, ProgresoEjercicioResponse } from '../../types';
+
+/* Lo que dice un nivel bloqueado, igual en el selector y en la pantalla de su sendero.
+   Un texto por nivel porque "aprueba el nivel anterior" obliga a adivinar cuál es.
+
+   ⚠️ Mientras Intermedio no tenga su Test Final, terminar sus ejercicios NO lo aprueba (lo
+   aprueba el examen), así que el mensaje de Avanzado promete algo que todavía no se puede
+   cumplir. Se aceptó a sabiendas el 18-sep-2026: Avanzado queda cerrado mientras se termina
+   su contenido, y el texto pasa a ser literal en cuanto exista ese examen. */
+const MENSAJE_BLOQUEO: Partial<Record<NivelCurso, string>> = {
+  INTERMEDIO: 'Completa el nivel Básico para empezar el Intermedio.',
+  AVANZADO: 'Termina el nivel Intermedio para desbloquear el Avanzado.',
+};
+
+export const mensajeDeBloqueo = (nivel: NivelCurso): string =>
+  MENSAJE_BLOQUEO[nivel] ?? 'Aprueba el nivel anterior para desbloquear este.';
 
 /* ¿YA SE LLEGÓ AL TEST FINAL? Todos los ejercicios del sendero hechos, menos el examen.
 

@@ -9,7 +9,7 @@ import BloqueoTestFinal from '../components/curso/BloqueoTestFinal';
 import { offsetSerpiente } from "../components/curso/geometriaSendero";
 import { DESBLOQUEAR_TODO_EL_CURSO } from '../core/desarrollo';
 import { useApariencia } from '../core/apariencia/useApariencia';
-import { llegoAlTestFinal } from '../core/curso/sendero';
+import { llegoAlTestFinal, mensajeDeBloqueo } from '../core/curso/sendero';
 
 const NOMBRE_NIVEL: Record<NivelCurso, string> = {
   BASICO: 'Básico',
@@ -140,7 +140,7 @@ const CursoNivelView = () => {
       <div className="mx-auto flex max-w-xl flex-col items-center gap-4 py-16 text-center">
         <span className="material-symbols-outlined text-5xl text-gris-texto/50">lock</span>
         <h1 className="text-2xl font-bold text-white">{NOMBRE_NIVEL[nivel]} todavía está bloqueado</h1>
-        <p className="text-gris-texto">Aprueba el nivel anterior para desbloquear este.</p>
+        <p className="text-gris-texto">{mensajeDeBloqueo(nivel)}</p>
         <button onClick={() => navigate('/curso')}
           className="mt-2 rounded-full border border-vidrio-borde bg-vidrio px-5 py-2.5 text-sm font-semibold text-white hover:border-cian/40">
           Volver a los niveles
