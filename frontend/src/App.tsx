@@ -41,6 +41,9 @@ const CursoSelectorView = lazy(() => import('./views/CursoSelectorView'));
 const CursoNivelView = lazy(() => import('./views/CursoNivelView'));
 const RevisionPalabrasView = lazy(() => import('./views/RevisionPalabrasView'));
 const LaboratorioSonidoView = lazy(() => import('./views/LaboratorioSonidoView'));
+// Fuera de la precarga: se visitan muy poco y pesan casi nada.
+const PrivacidadView = lazy(() => import('./views/PrivacidadView'));
+const TerminosView = lazy(() => import('./views/TerminosView'));
 
 /* El orden importa: primero lo que el usuario toca a los pocos segundos de entrar (elegir una
    noticia y ponerse a teclear), después el resto. La pantalla de administración va al final
@@ -150,6 +153,8 @@ function App() {
                 elegir el degradado del fondo. Se borra cuando los ganadores esten
                 cableados en los ejercicios. */}
             <Route path="/laboratorio-sonido" element={<LaboratorioSonidoView />} />
+            <Route path="/privacidad" element={<PrivacidadView />} />
+            <Route path="/terminos" element={<TerminosView />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </Suspense>
