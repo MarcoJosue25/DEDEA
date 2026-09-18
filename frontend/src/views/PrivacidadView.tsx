@@ -59,9 +59,9 @@ const PrivacidadView = () => (
               <strong>Google o Facebook</strong>, solo si inicias sesión con ellos.
             </li>
             <li>
-              Las fuentes tipográficas se cargan desde Google Fonts y las imágenes de las
-              noticias desde los sitios de cada medio. Como en cualquier web, esos servicios
-              reciben tu dirección IP al cargarlas.
+              Las fuentes tipográficas vienen de Google Fonts y las imágenes de las noticias,
+              del sitio de cada medio. Tu navegador las descarga directamente de ellos, como en
+              cualquier página web; DEDEA no les comparte ningún dato tuyo.
             </li>
           </ul>
         ),
@@ -71,9 +71,11 @@ const PrivacidadView = () => (
         contenido: (
           <p>
             Usamos una cookie para mantener tu sesión iniciada (dura 30 días) y otra temporal
-            mientras inicias sesión. En el almacenamiento de tu navegador guardamos tu
-            identificador y tus preferencias, como la apariencia o el sonido. No usamos cookies
-            de publicidad ni de analítica.
+            mientras inicias sesión. Si no inicias sesión, tu navegador recuerda un
+            identificador que conecta tus prácticas con tu progreso; si borras los datos del
+            navegador, ese progreso deja de estar disponible, e iniciar sesión lo evita. Tu
+            navegador también recuerda tus preferencias, como la apariencia o el sonido. No
+            usamos cookies de publicidad ni de analítica.
           </p>
         ),
       },
