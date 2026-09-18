@@ -1,0 +1,408 @@
+@import "tailwindcss";
+
+/* ============================================================
+   TOKENS DE DEDEA
+   Única fuente de verdad del color. Antes existía un set de
+   tokens aquí que no usaba nadie (555 clases sueltas tipo
+   emerald-500 repartidas por las vistas). La regla nueva es:
+   toda vista migrada usa estos nombres, nunca la paleta cruda
+   de Tailwind.
+   ============================================================ */
+@theme {
+  /* --- Marca --- */
+  --color-primary: #22D3EE;           /* cian de acento */
+  --color-primary-dim: #0E7C8C;       /* cian apagado: bordes, hovers */
+  --color-on-primary: #04212A;        /* texto sobre el cian */
+  --color-secondary: #D96FE8;         /* magenta: precisión, segundo acento */
+
+  /* --- Fondos y superficies --- */
+  --color-ground: #060E17;            /* base del degradado */
+  --color-ground-end: #000B14;        /* color plano bajo el pliegue */
+  --color-surface: #0E1B29;           /* tarjetas */
+  --color-surface-2: #16283A;         /* superficie elevada */
+  --color-line: #1E3448;              /* bordes y divisores */
+
+  /* --- Texto --- */
+  --color-on-surface: #E6F1F7;        /* texto principal */
+  --color-muted: #7C97AC;             /* secundario */
+  --color-faint: #3E576C;             /* deshabilitado, texto sin teclear */
+
+  /* --- Tarjetas de noticia (valores exactos del Figma) --- */
+  --color-carta: #0A141C;             /* fondo de la tarjeta */
+  --color-cian: #00F1FD;              /* acento fuerte: "&", PRACTICAR, chip activo */
+  --color-cian-suave: #96F8FF;        /* texto de la insignia de categoría */
+  --color-gris-texto: #B0B3B5;        /* descripción, fecha y dificultad */
+  --color-pastilla: #15212A;          /* fondo del botón de dificultad */
+
+  /* Superficie translúcida para las pantallas de selección (listado del curso,
+     elección de letras). Deja pasar el degradado en vez de taparlo con un bloque
+     oscuro, que es lo que hacía --color-carta en pantallas con muchas tarjetas. */
+  --color-vidrio: rgba(255, 255, 255, 0.05);
+  --color-vidrio-alto: rgba(255, 255, 255, 0.09);   /* hover */
+  --color-vidrio-borde: rgba(255, 255, 255, 0.10);
+
+  /* --- Dificultad --- */
+  --color-facil: #0048FF;
+  --color-medio: #BF81FF;
+  /* Entre medio y dificil: interpolacion de los dos tokens vecinos, para que el
+     salto de color acompane el salto de nivel. Ver CLAUDE.md 10.22. */
+  --color-medio-dificil: #DF4081;
+  --color-dificil: #FF0004;
+
+  --color-error: #FF0004;
+  --color-exito: #00F1FD;
+
+  /* --- Recompensas del Curso ---
+     El oro es el ÚNICO color de la app que no sale del sistema cian/magenta, y es
+     deliberado: una estrella tiene que leerse como estrella al primer vistazo, y en cian
+     se confundía con el acento que ya usan el WPM, el botón activo y el texto acertado —
+     o sea que el premio se veía igual que la interfaz de siempre. El apagado es el hueco
+     de una estrella que todavía no conseguiste, y tiene que verse como hueco, no como
+     estrella oscura. */
+  --color-oro: #FFC53D;
+  --color-oro-apagado: #4A3D1C;
+
+  /* --- Dedos del teclado guía ---
+     CUATRO colores, no ocho: el mismo dedo lleva el mismo color en las dos manos, que es
+     como lo hace TypingClub. Ocho colores obligan a memorizar ocho asociaciones; cuatro
+     espejados enseñan una sola idea ("este color es el índice") y la mano la decide la
+     posición en el teclado, que ya se ve.
+
+     Ninguno es cian ni rojo, y eso es una restricción dura: el cian ya significa "la tecla
+     que toca ahora" y el rojo "acabás de fallar". Un dedo pintado de cian competiría con
+     el resaltado que de verdad hay que mirar. */
+  --color-dedo-indice: #4ADE80;
+  --color-dedo-medio: #FACC15;
+  --color-dedo-anular: #FB923C;
+  --color-dedo-menique: #F472B6;
+  --color-dedo-pulgar: #94A3B8;
+
+  /* --- Área de Entrenamiento (valores exactos del Figma) ---
+     Superficies casi transparentes: dejan pasar el degradado en vez de taparlo, igual
+     que el sistema de vidrio, pero con tinte azul propio de esta sección. */
+  --color-entreno-sup: #0A2243;        /* paneles: sidebar, texto, teclado, botones */
+  --color-entreno-categoria: #00192B;  /* teclas y chips de categoría */
+
+  --font-display: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* ============================================================
+   FONDO BASE
+   Traducción del radial de Figma. Detalles que importan:
+
+   - background-size confina el degradado a la primera pantalla
+     (135vh). Debajo asoma el background-color, que es el último
+     stop con el velo del 20% ya aplicado (#000E19 * 0.8), para
+     que no se vea costura al cruzar el pliegue.
+   - Nada de background-attachment: fixed, o el glow seguiría al
+     usuario al hacer scroll en vez de quedarse arriba.
+   - "in oklab" va DESPUÉS de la posición y sin coma; con coma el
+     navegador descarta la declaración entera en silencio.
+   ============================================================ */
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+  color: var(--color-on-surface);
+  background-color: var(--color-ground-end);
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)),
+    radial-gradient(
+      ellipse 89% 100% at 50% 0% in oklab,
+      rgba(0, 63, 112, 0.8) 13%,
+      #002745 38%,
+      #051E31 53%,
+      #060F16 74%,
+      #000E19 100%
+    );
+  background-repeat: no-repeat;
+  background-size: 100% 135vh;
+  background-position: 50% 0;
+}
+
+/* Grano anti-banding.
+   Figma difumina sus degradados al renderizar; el navegador no, y en un
+   degradado oscuro de transición larga los escalones de 8 bits se ven como
+   ondas concéntricas. Este ruido SVG los rompe. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* El contenido va encima del grano. */
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================
+   APARIENCIAS de Práctica y Resultados.
+   El degradado del fondo no cambia: lo que cambia es el juego de
+   superficies que va encima. Las vistas usan SIEMPRE estas
+   variables, así que agregar una apariencia nueva es sumar un
+   bloque acá y una entrada en core/apariencia/apariencia.ts,
+   sin tocar el JSX.
+   ============================================================ */
+[data-apariencia='claro'] {
+  --sup: #FFFFFF;
+  /* slate-200: el mismo borde que ya tenían las tarjetas claras. Antes esto era
+     `transparent`, y por eso una vista escrita con variables perdía el contorno. */
+  --sup-borde: #E2E8F0;
+  --sup-sombra: 0 4px 12px rgba(15, 23, 42, 0.03);
+  --sup-texto: #0F172A;
+  --sup-tenue: #64748B;
+  --texto-pendiente: #CBD5E1;
+  --texto-activo: #0F172A;
+  --tecla-fondo: #FFFFFF;
+  --tecla-borde: #E2E8F0;
+  --tecla-texto: #334155;
+  --panel-texto: #0F172A;
+}
+
+[data-apariencia='oscuro'] {
+  /* 2% de cian: apenas separa la tarjeta del degradado sin cortarlo. */
+  --sup: rgba(0, 241, 253, 0.02);
+  --sup-borde: rgba(255, 255, 255, 0.07);
+  /* Sin sombra: sobre el degradado oscuro no aporta y ensucia el borde. */
+  --sup-sombra: none;
+  --sup-texto: #FFFFFF;
+  --sup-tenue: #B0B3B5;
+  --texto-pendiente: #3E576C;
+  --texto-activo: #FFFFFF;
+  --tecla-fondo: #0A141C;
+  --tecla-borde: rgba(255, 255, 255, 0.07);
+  --tecla-texto: #B0B3B5;
+  --panel-texto: #FFFFFF;
+}
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+}
+
+/* Cursor de tipeo. Barra de 2px SIEMPRE del mismo ancho pegada al borde
+   izquierdo del carácter: un subrayado se encoge con la letra (una "i" en
+   fuente proporcional mide 4px) y prácticamente desaparece. */
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  from, to { border-color: transparent; }
+  50% { border-color: var(--color-primary); }
+}
+
+.key-cap {
+  transition: all 0.1s ease-in-out;
+  min-width: 44px;
+  height: 44px;
+}
+
+/* ============================================================
+   REJILLA DEL ÁREA DE ENTRENAMIENTO
+   Blanco al 2%, trazo de 1px, celda de 34x34. Va como capa
+   propia y no en el body porque solo existe en esta sección:
+   el resto de la app conserva el degradado limpio.
+   ============================================================ */
+.rejilla-entreno {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+
+/* El cronómetro circular de muerte súbita. El trazo punteado se anima girando el
+   contenedor, no el dash: animar stroke-dashoffset repinta en cada cuadro. */
+@keyframes girar-lento {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.aro-cuenta-atras {
+  animation: girar-lento 8s linear infinite;
+}
+
+/* ============================================================
+   ANIMACIONES DE RECOMPENSA (Curso por niveles)
+
+   Todas respetan prefers-reduced-motion al final del bloque: el
+   premio tiene que seguir leyéndose sin movimiento, no
+   desaparecer. Por eso ahí no se anula la animación sino que se
+   la deja en su estado FINAL — sin el fallback, una estrella
+   que solo existe al terminar su keyframe se quedaría invisible.
+   ============================================================ */
+
+/* La estrella entra pasándose de tamaño y vuelve: el rebote es lo que
+   hace que se lea como "conseguida" y no como "estaba ahí". */
+@keyframes estrella-aparece {
+  0%   { transform: scale(0) rotate(-45deg); opacity: 0; }
+  60%  { transform: scale(1.35) rotate(8deg); opacity: 1; }
+  80%  { transform: scale(0.92) rotate(-3deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.estrella-aparece {
+  animation: estrella-aparece 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Halo que late detrás de la estrella recién ganada. */
+@keyframes halo-late {
+  0%, 100% { transform: scale(1); opacity: 0.45; }
+  50%      { transform: scale(1.25); opacity: 0.12; }
+}
+
+.halo-late { animation: halo-late 2.2s ease-in-out infinite; }
+
+/* Entrada de los paneles de resultado: suben unos píxeles al aparecer. */
+@keyframes sube-y-aparece {
+  from { transform: translateY(14px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+.sube-y-aparece { animation: sube-y-aparece 420ms ease-out both; }
+
+/* El "no llegaste": una sacudida corta y seca, sin rebote alegre. */
+@keyframes sacude {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-5px); }
+  40%      { transform: translateX(5px); }
+  60%      { transform: translateX(-3px); }
+  80%      { transform: translateX(3px); }
+}
+
+.sacude { animation: sacude 380ms ease-in-out both; }
+
+/* Barra que se llena desde cero. El ancho final llega por variable en línea
+   (--destino) para no tener que generar un keyframe por porcentaje. */
+@keyframes barra-llena {
+  from { width: 0; }
+  to   { width: var(--destino); }
+}
+
+.barra-llena { animation: barra-llena 900ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Destello del trofeo cuando se aprueba un nivel entero. */
+@keyframes brilla-trofeo {
+  0%, 100% { filter: drop-shadow(0 0 12px rgba(255, 197, 61, 0.45)); }
+  50%      { filter: drop-shadow(0 0 30px rgba(255, 197, 61, 0.85)); }
+}
+
+.brilla-trofeo { animation: brilla-trofeo 2.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .estrella-aparece,
+  .sube-y-aparece,
+  .sacude,
+  .barra-llena {
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
+  }
+  .halo-late,
+  .brilla-trofeo {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   LLUVIA DE LETRAS
+   ============================================================ */
+
+/* La letra RÁPIDA cae al doble y late mientras baja. Sin el latido, una letra que
+   simplemente va más rápido se lee como un fallo del juego y no como un reto: el
+   movimiento propio es lo que la declara distinta antes de que el usuario entienda
+   por qué. */
+@keyframes late-rapida {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.22); }
+}
+
+.late-rapida { animation: late-rapida 520ms ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .late-rapida { animation: none; }
+}
+
+/* EL CAJETÍN DE LA TECLA QUE TOCA, en la pista de tres carriles.
+
+   Late despacio y sin parar mientras esa fila sea el destino. Es la ayuda permanente del
+   recorrido: cuando el ejercicio se queda esperando la tecla correcta, esto es lo único que
+   dice A QUÉ FILA hay que ir — sin él, bloquear el avance sería un castigo mudo.
+
+   Lento a propósito (1,4 s): un parpadeo rápido al lado de una letra que ya crece en el
+   centro compite con ella. Este late de fondo, el centro manda. */
+@keyframes late-objetivo {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%      { transform: scale(1.14); opacity: 0.82; }
+}
+
+.late-objetivo { animation: late-objetivo 1.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Sin latido sigue siendo el único cajetín encendido, así que la ayuda no se pierde. */
+  .late-objetivo { animation: none; }
+}
+
+/* EL SIGUIENTE AL QUE IR, en la barra de guiones de Resultados (BarraSendero). Parpadeo de
+   opacidad y no de escala: los guiones van pegados unos a otros, y uno que creciera taparía
+   a sus vecinos justo cuando hay que distinguirlos. */
+@keyframes parpadeo-segmento {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.25; }
+}
+
+.parpadeo-segmento { animation: parpadeo-segmento 1s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Sin parpadeo sigue siendo el guion más alto y con aro, así que se encuentra igual. */
+  .parpadeo-segmento { animation: none; }
+}
+
+/* LA DEMOSTRACIÓN DE LA VENTANA DE ENTRADA. Una letra que baja, se desvanece al llegar
+   abajo y vuelve a empezar.
+
+   La caída es LINEAL a propósito, igual que en el juego: con una curva de aceleración la
+   demo enseñaría un movimiento que después no ocurre. Y el desvanecido del final evita
+   tener que dibujar el suelo — lo que importa de la demo es la bajada y la diferencia de
+   ritmo entre las dos letras, no qué pasa al aterrizar.
+
+   El retardo y la duración los pone cada letra en línea: es lo único que las distingue, y
+   así la dorada puede ir al doble sin ninguna clase aparte. */
+@keyframes cae-demo {
+  0%   { transform: translateY(0); opacity: 0; }
+  12%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(var(--recorrido, 96px)); opacity: 0; }
+}
+
+.cae-demo { animation: cae-demo var(--dur, 2.4s) linear var(--retraso, 0s) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Sin movimiento la demo pierde su sentido, así que se queda quieta y visible en vez de
+     desaparecer: al menos se ve qué letras hay y cuál es la dorada. */
+  .cae-demo { animation: none; opacity: 1; }
+}
+
+/* El destello entre frases del nodo de tildes: entra, se queda un instante y se va.
+   Segundo y medio en total, y el texto se cambia por debajo mientras dura — por eso el
+   fundido de salida es más largo que el de entrada: tapa el cambio. */
+@keyframes destello-tanda {
+  0%   { opacity: 0; transform: scale(0.94); }
+  15%  { opacity: 1; transform: scale(1); }
+  65%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.02); }
+}
+.destello-tanda { animation: destello-tanda 1.5s ease-out forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .destello-tanda { animation: none; opacity: 1; }
+}
