@@ -146,8 +146,19 @@ public class SesionServiceImpl implements SesionService {
         }
 
         ModoUsado modo = parseModoUsado(request.getModoUsado());
-        boolean mandaElServidor = (modo == ModoUsado.NOTICIAS || modo == ModoUsado.IA)
-                && presionadas > 0 && request.getSegundos() != null && request.getSegundos() > 0;
+        boolean recalculable = modo == ModoUsado.NOTICIAS || modo == ModoUsado.IA;
+
+        /* Sin pulsaciones no hay de dónde recalcular, y hasta el 18-sep-2026 eso dejaba pasar
+           el número del cliente tal cual: bastaba con NO mandar `teclas` para registrar un
+           900. En la app nunca ocurre —Noticias e IA guardan al terminar el texto, así que
+           siempre traen pulsaciones—, de modo que una sesión así solo puede venir armada a
+           mano. Se rechaza en vez de guardarla en 0, que ensuciaría los promedios. */
+        if (recalculable && presionadas == 0) {
+            throw new ApiException("Una sesión de práctica sin pulsaciones no se puede guardar.");
+        }
+
+        boolean mandaElServidor = recalculable
+                && request.getSegundos() != null && request.getSegundos() > 0;
 
         Integer wpm = request.getWpm();
         java.math.BigDecimal precision = request.getPrecision();

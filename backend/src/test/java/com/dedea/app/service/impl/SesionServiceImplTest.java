@@ -7,7 +7,6 @@ import com.dedea.app.mapper.EntityMapper;
 import com.dedea.app.model.Sesion;
 import com.dedea.app.repository.*;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -15,6 +14,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -74,32 +74,24 @@ class SesionServiceImplTest {
         assertThat(guardada.get().getWpm()).isEqualTo(72);
     }
 
-    /* El recálculo solo corre si llegan pulsaciones. Una sesión de Noticias SIN desglose de
-       teclas no tiene de dónde recalcular — y hoy se guarda el número del cliente tal cual,
-       o sea que el agujero que el recálculo cerró sigue abierto: basta con no mandar
-       `teclas`. Una sesión sin una sola pulsación no puede tener WPM: o se rechaza, o se
-       guarda en cero. */
+    /* Sin pulsaciones no hay de dónde recalcular. Hasta el 18-sep-2026 eso dejaba pasar el
+       número del cliente: bastaba con no mandar `teclas` para registrar un 900. En la app
+       nunca pasa (Noticias e IA guardan al terminar el texto), así que se rechaza. */
     @Test
-    @Disabled("BUG PENDIENTE (18-sep-2026): sin `teclas` no se recalcula y se guarda el WPM "
-            + "del cliente — el agujero de 13.1 sigue abierto. Quitar este @Disabled al arreglarlo.")
-    void unaSesionDeNoticiasSinPulsacionesNoPuedeGuardarElWpmDelCliente() {
-        verificarQueNoSeGuardaElInventado(pedido("NOTICIAS", 900, 60, null));
-        verificarQueNoSeGuardaElInventado(pedido("IA", 900, 60, List.of()));
+    void unaSesionDeNoticiasOIaSinPulsacionesSeRechaza() {
+        for (SesionRequest pedido : List.of(
+                pedido("NOTICIAS", 900, 60, null),
+                pedido("IA", 900, 60, List.of()))) {
+            guardada.set(null);
+
+            assertThatThrownBy(() -> servicio.guardarSesionCompletada(UUID, pedido))
+                    .as("modo %s sin pulsaciones", pedido.getModoUsado())
+                    .isInstanceOf(ApiException.class);
+            assertThat(guardada.get()).as("no se tiene que guardar nada").isNull();
+        }
     }
 
     // --- Ayudas ---------------------------------------------------------------------------
-
-    private void verificarQueNoSeGuardaElInventado(SesionRequest pedido) {
-        guardada.set(null);
-        try {
-            servicio.guardarSesionCompletada(UUID, pedido);
-            assertThat(guardada.get().getWpm())
-                    .as("modo %s sin pulsaciones: se guardó el WPM del cliente", pedido.getModoUsado())
-                    .isZero();
-        } catch (ApiException rechazada) {
-            // Rechazarla también cumple la regla.
-        }
-    }
 
     private static SesionRequest pedido(String modo, int wpm, int segundos, List<TeclaStatsRequest> teclas) {
         return SesionRequest.builder()
