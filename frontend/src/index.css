@@ -77,11 +77,9 @@
   --color-dedo-menique: #F472B6;
   --color-dedo-pulgar: #94A3B8;
 
-  /* --- Área de Entrenamiento (valores exactos del Figma) ---
-     Superficies casi transparentes: dejan pasar el degradado en vez de taparlo, igual
-     que el sistema de vidrio, pero con tinte azul propio de esta sección. */
-  --color-entreno-sup: #0A2243;        /* paneles: sidebar, texto, teclado, botones */
-  --color-entreno-categoria: #00192B;  /* teclas y chips de categoría */
+  /* Superficie de "Palabras flotantes". Nació en el Área de Entrenamiento (V3, fuera de
+     main); se queda porque ese ejercicio sí es del Curso. */
+  --color-entreno-sup: #0A2243;
 
   --font-display: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -186,23 +184,6 @@ body::after {
   transition: all 0.1s ease-in-out;
   min-width: 44px;
   height: 44px;
-}
-
-/* ============================================================
-   REJILLA DEL ÁREA DE ENTRENAMIENTO
-   Blanco al 2%, trazo de 1px, celda de 34x34. Va como capa
-   propia y no en el body porque solo existe en esta sección:
-   el resto de la app conserva el degradado limpio.
-   ============================================================ */
-.rejilla-entreno {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-  background-size: 34px 34px;
 }
 
 /* El cronómetro circular de muerte súbita. El trazo punteado se anima girando el

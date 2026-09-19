@@ -285,6 +285,9 @@ export interface CursoStatsResponse {
   aprobado: boolean;
   teclasMasFalladas: ItemDebilidad[];
   nodosPorMejorar: number;
+  // Lo que pide el Test Final para aprobar el nivel.
+  metaWpm: number;
+  metaPrecision: number;
   // La Prueba de nivel y lo que exige. Los tres en null si el nivel todavía no tiene prueba.
   pruebaNivelId: number | null;
   pruebaNivelWpm: number | null;
@@ -360,11 +363,6 @@ export interface IntentoResumen {
   precision: number;
   segundos: number;
   fecha: string;
-}
-
-export interface HistorialEjercicioResponse {
-  mejores: IntentoResumen[];
-  peores: IntentoResumen[];
 }
 
 // --- REVISIÓN MANUAL DEL DICCIONARIO (pantalla de admin, sin enlace en la navegación) ---

@@ -1,7 +1,7 @@
 import { api } from './client';
 import type {
   GenericResponse, EjercicioDTO, EjercicioContenidoResponse, SesionCursoRequest, SesionResponse,
-  HistorialEjercicioResponse, IntentoResumen, LatidoResponse,
+  IntentoResumen, LatidoResponse,
 } from '../types';
 
 export const listarEjercicios = (): Promise<EjercicioDTO[]> => {
@@ -48,10 +48,6 @@ export const obtenerContenidoConFantasmaSimulado = (
 export const obtenerRivalSombra = (id: number): Promise<IntentoResumen | null> => {
   return api.get<GenericResponse<IntentoResumen | null>>(`/ejercicios/${id}/rival`)
     .then((res) => res.data.data ?? null);
-};
-
-export const obtenerHistorialEjercicio = (id: number): Promise<HistorialEjercicioResponse> => {
-  return api.get<GenericResponse<HistorialEjercicioResponse>>(`/ejercicios/${id}/historial`).then((res) => res.data.data);
 };
 
 export const guardarSesionEjercicio = (id: number, request: SesionCursoRequest): Promise<SesionResponse> => {

@@ -27,25 +27,6 @@ export const extraerNgramsFallidos = (
   return ngramsFallidos;
 };
 
-export const generarTodosNgrams = (palabra: string): string[] => {
-  const ngrams: string[] = [];
-  if (!palabra || palabra.length < 2) return ngrams;
-
-  const p = palabra.toLowerCase();
-
-  // Bigramas
-  for (let i = 0; i < p.length - 1; i++) {
-    ngrams.push(p.slice(i, i + 2));
-  }
-
-  // Trigramas
-  for (let i = 0; i < p.length - 2; i++) {
-    ngrams.push(p.slice(i, i + 3));
-  }
-
-  return ngrams;
-};
-
 export const contarAparicionesNgram = (texto: string, ngram: string): number => {
   const textoLimpio = texto.toLowerCase();
   let count = 0;

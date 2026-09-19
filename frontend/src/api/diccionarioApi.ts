@@ -1,10 +1,6 @@
 import { api } from './client';
 import type { GenericResponse } from '../types';
 
-export interface NgramSeleccionado {
-  secuencia: string;
-}
-
 // Cuántas palabras se piden en total cuando se combinan varios ngrams/letras.
 const TOTAL_PALABRAS_DEFECTO = 40;
 

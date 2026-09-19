@@ -91,11 +91,3 @@ export const restaurarEstadoNodo = (ejercicioId: number | string): EstadoNodo | 
     return null;
   }
 };
-
-export const olvidarEstadoNodo = (ejercicioId: number | string) => {
-  try {
-    sessionStorage.removeItem(clave(ejercicioId));
-  } catch {
-    // Ver guardarEstadoNodo.
-  }
-};

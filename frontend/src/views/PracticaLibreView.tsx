@@ -446,7 +446,9 @@ const PracticaLibreView = () => {
         });
         setAvisoCombinacion(true);
       })
-      .catch(() => {});
+      /* Si falla, la línea sigue con las palabras de antes: mejor que cortar la práctica.
+         Pero que quede rastro, o el día que pase no hay de dónde tirar. */
+      .catch((error) => console.warn('No se pudo traer la tanda nueva de palabras:', error));
   };
 
   // --- Guardado (una sola sesión acumulada) ---

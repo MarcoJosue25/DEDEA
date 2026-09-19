@@ -771,7 +771,9 @@ const CursoPracticaView = () => {
         fantasmaEventosRef.current = null;
         setGhostIndice(-1);
       })
-      .catch(() => {});
+      /* Si falla, la fase 2 sigue con la oración anterior: mejor que cortar el ejercicio.
+         Pero que quede rastro, o el día que pase no hay de dónde tirar. */
+      .catch((error) => console.warn('No se pudo traer la oración de la fase 2:', error));
   }, [id]);
 
   /* Si el rival no se puede cargar (sesión borrada, de otro ejercicio, o guardada antes

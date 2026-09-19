@@ -9,7 +9,6 @@ const CLAVE = 'dedea_admin_key';
 
 export const guardarClave = (clave: string) => sessionStorage.setItem(CLAVE, clave);
 export const leerClave = () => sessionStorage.getItem(CLAVE) ?? '';
-export const olvidarClave = () => sessionStorage.removeItem(CLAVE);
 
 const cabecera = () => ({ headers: { 'X-Admin-Key': leerClave() } });
 
