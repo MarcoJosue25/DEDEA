@@ -140,6 +140,8 @@ public class CursoStatsServiceImpl implements CursoStatsService {
                 .aprobado(Boolean.TRUE.equals(progreso.getAprobado()))
                 .teclasMasFalladas(teclas)
                 .nodosPorMejorar(contarPorMejorar(identificadorTemporal, nivel))
+                .metaWpm(UMBRAL_WPM.get(nivel))
+                .metaPrecision(UMBRAL_PRECISION.get(nivel))
                 .pruebaNivelId(prueba != null ? prueba.getId() : null)
                 .pruebaNivelWpm(prueba != null ? UMBRAL_WPM.get(nivel) : null)
                 .pruebaNivelPrecision(prueba != null ? UMBRAL_TEST_NIVEL_PRECISION : null)

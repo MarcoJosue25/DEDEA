@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -71,6 +72,20 @@ class CursoStatsServiceImplTest {
         assertThat(stats.getPruebaNivelId()).isEqualTo(ID_PRUEBA);
         assertThat(stats.getPruebaNivelWpm()).isEqualTo(18);
         assertThat(stats.getPruebaNivelPrecision()).isEqualByComparingTo("95");
+    }
+
+    /* La meta que muestra el selector de niveles es la misma que exige el Test Final: sale
+       de las constantes que aprueban el nivel, no de una copia en el front. */
+    @Test
+    void lasEstadisticasTraenLaMetaParaAprobarCadaNivel() {
+        CursoStatsResponse basico = servicio.obtenerStatsPorNivel(UUID, NivelCurso.BASICO);
+        CursoStatsResponse intermedio = servicio.obtenerStatsPorNivel(UUID, NivelCurso.INTERMEDIO);
+        CursoStatsResponse avanzado = servicio.obtenerStatsPorNivel(UUID, NivelCurso.AVANZADO);
+
+        assertThat(List.of(basico.getMetaWpm(), intermedio.getMetaWpm(), avanzado.getMetaWpm()))
+                .containsExactly(18, 32, 45);
+        assertThat(List.of(basico.getMetaPrecision(), intermedio.getMetaPrecision(), avanzado.getMetaPrecision()))
+                .containsExactly(90, 92, 94);
     }
 
     @Test

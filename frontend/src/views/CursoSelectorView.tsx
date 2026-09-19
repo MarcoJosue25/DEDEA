@@ -9,27 +9,21 @@ import { enConstruccion, mensajeDeBloqueo } from '../core/curso/sendero';
 
 /* Cada nivel se presenta por lo que SE APRENDE en él, no solo por su nombre. "Básico /
    Intermedio / Avanzado" no le dice a nadie qué va a hacer adentro ni por qué empezar;
-   los umbrales sí, y además fijan la meta desde el primer momento. Los números salen de
-   CursoStatsServiceImpl (UMBRAL_WPM / UMBRAL_PRECISION).
-   ⚠️ Están escritos en dos lugares. Si se recalibran allá, hay que traerlos acá. */
-const NIVELES: {
-  id: NivelCurso; nombre: string; icono: string; resumen: string;
-  metaWpm: number; metaPrecision: number;
-}[] = [
+   la meta para aprobar sí. Esa meta ya no se escribe acá: llega en las estadísticas de
+   cada nivel (metaWpm / metaPrecision), que salen de los mismos umbrales que aprueban el
+   nivel en el backend. */
+const NIVELES: { id: NivelCurso; nombre: string; icono: string; resumen: string }[] = [
   {
     id: 'BASICO', nombre: 'Básico', icono: 'keyboard',
     resumen: 'Las tres filas del teclado, dedo por dedo, sin mirar.',
-    metaWpm: 18, metaPrecision: 90,
   },
   {
     id: 'INTERMEDIO', nombre: 'Intermedio', icono: 'speed',
     resumen: 'Palabras reales, mayúsculas, tildes y signos de puntuación.',
-    metaWpm: 32, metaPrecision: 92,
   },
   {
     id: 'AVANZADO', nombre: 'Avanzado', icono: 'military_tech',
     resumen: 'Números, símbolos, textos largos y velocidad bajo presión.',
-    metaWpm: 45, metaPrecision: 94,
   },
 ];
 
@@ -159,9 +153,11 @@ const CursoSelectorView = () => {
                       {/* La meta del nivel, siempre visible. Antes solo se veía el promedio,
                           que no dice contra qué se compara: 24 WPM puede ser mucho o poco
                           según el nivel, y el usuario no tenía cómo saberlo. */}
-                      <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-gris-texto/70">
-                        Meta para aprobar: {n.metaWpm} WPM · {n.metaPrecision}% de precisión
-                      </p>
+                      {stats?.metaWpm != null && (
+                        <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-gris-texto/70">
+                          Meta para aprobar: {stats.metaWpm} WPM · {stats.metaPrecision}% de precisión
+                        </p>
+                      )}
 
                       <div className="mt-3 flex items-center gap-3">
                         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/8">

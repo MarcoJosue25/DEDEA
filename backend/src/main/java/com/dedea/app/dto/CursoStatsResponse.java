@@ -29,6 +29,12 @@ public class CursoStatsResponse {
        Test Final pueda aprobar el nivel. */
     private Integer nodosPorMejorar;
 
+    /* La meta para aprobar el nivel: lo que pide su Test Final. Viaja desde acá para que el
+       selector de niveles no la escriba a mano (hasta el 19-sep-2026 estaba copiada en
+       CursoSelectorView y había que sincronizarla con UMBRAL_WPM / UMBRAL_PRECISION). */
+    private Integer metaWpm;
+    private Integer metaPrecision;
+
     /* La Prueba de nivel: el atajo para aprobar el nivel entero sin recorrer el sendero. No
        viaja con los nodos (vive en el orden 0, fuera del camino), así que la pantalla la
        recibe por acá, con sus dos umbrales para no escribirlos a mano en el front. Los tres
