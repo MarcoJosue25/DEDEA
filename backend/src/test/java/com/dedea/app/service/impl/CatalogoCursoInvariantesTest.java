@@ -3,6 +3,7 @@ package com.dedea.app.service.impl;
 import com.dedea.app.model.Ejercicio;
 import com.dedea.app.model.enums.NivelCurso;
 import com.dedea.app.model.enums.RolEjercicioNivel;
+import com.dedea.app.util.ContenidoCurado;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -79,16 +80,20 @@ class CatalogoCursoInvariantesTest {
         }
     }
 
-    /* Básico no tiene huecos: un número que falta es un nodo que se perdió. Intermedio y
-       Avanzado sí los tienen, y son deliberados (CLAUDE.md 6.5), así que no se miran acá. */
+    /* Básico e Intermedio no tienen huecos: un número que falta es un nodo que se perdió.
+       Avanzado arranca en el 2 a propósito (el 1 queda para su Test de nivel), así que no se
+       mira acá. Intermedio tuvo huecos deliberados hasta que se reorganizó (CLAUDE.md 6.5). */
     @Test
-    void elSenderoDeBasicoNoTieneHuecos() throws Exception {
+    void losSenderosDeBasicoEIntermedioNoTienenHuecos() throws Exception {
         CatalogoEnMemoria c = CatalogoEnMemoria.soloCurso();
 
-        List<Integer> ordenes = c.senderoActivo(NivelCurso.BASICO).stream()
-                .map(Ejercicio::getOrden).toList();
+        for (NivelCurso nivel : List.of(NivelCurso.BASICO, NivelCurso.INTERMEDIO)) {
+            List<Integer> ordenes = c.senderoActivo(nivel).stream()
+                    .map(Ejercicio::getOrden).toList();
 
-        assertThat(ordenes).isEqualTo(IntStream.rangeClosed(1, ordenes.size()).boxed().toList());
+            assertThat(ordenes).as("%s con huecos", nivel)
+                    .isEqualTo(IntStream.rangeClosed(1, ordenes.size()).boxed().toList());
+        }
     }
 
     /* Los dos ejercicios de control: a lo sumo uno de cada uno por nivel, la Prueba de nivel
@@ -121,6 +126,34 @@ class CatalogoCursoInvariantesTest {
                 .toList();
         assertThat(conRol(basico, RolEjercicioNivel.TEST_FINAL)).hasSize(1);
         assertThat(conRol(basico, RolEjercicioNivel.TEST_NIVEL)).hasSize(1);
+
+        // Intermedio: solo el Test Final, sin Prueba de nivel (decisión del 18-sep-2026).
+        List<Ejercicio> intermedio = c.porId.values().stream()
+                .filter(e -> e.getNivel() == NivelCurso.INTERMEDIO && Boolean.TRUE.equals(e.getActivo()))
+                .toList();
+        assertThat(conRol(intermedio, RolEjercicioNivel.TEST_FINAL)).hasSize(1);
+        assertThat(conRol(intermedio, RolEjercicioNivel.TEST_NIVEL)).isEmpty();
+    }
+
+    /* El examen de Intermedio tiene cuatro textos y sirve UNO al azar en cada intento (pedido
+       del usuario: se repite hasta aprobarlo). Uno entero, no pegado a otro, y a lo largo de
+       los intentos salen los cuatro. */
+    @Test
+    void elTestFinalDeIntermedioSirveUnoDeSusCuatroTextos() throws Exception {
+        CatalogoEnMemoria c = CatalogoEnMemoria.soloCurso();
+        Ejercicio examen = c.porId.values().stream()
+                .filter(e -> e.getNivel() == NivelCurso.INTERMEDIO
+                        && e.getRolEnNivel() == RolEjercicioNivel.TEST_FINAL)
+                .findFirst().orElseThrow();
+
+        Set<String> salieron = new HashSet<>();
+        for (int i = 0; i < 200; i++) {
+            String texto = c.servicio.generarContenido(examen.getId(), null, null).texto();
+            assertThat(ContenidoCurado.TEXTO_TEST_FINAL_INTERMEDIO).as("un texto entero del banco")
+                    .contains(texto);
+            salieron.add(texto);
+        }
+        assertThat(salieron).hasSize(ContenidoCurado.TEXTO_TEST_FINAL_INTERMEDIO.size());
     }
 
     /* Una configuración con el JSON roto no revienta: `parsearConfiguracion` la registra y

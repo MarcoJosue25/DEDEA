@@ -675,6 +675,48 @@ public final class ContenidoCurado {
                     + "deja de pensar en las teclas y empieza a pensar en lo que quiere decir, que es "
                     + "para lo que sirve. La velocidad llega luego, sola, como consecuencia.");
 
+    /* EL EXAMEN DE INTERMEDIO (18-sep-2026). Cuatro textos y se sirve UNO al azar en cada
+       intento —también al recargar—, pedido del usuario: el examen se repite hasta aprobarlo,
+       y con un solo texto se termina tecleando de memoria. Dos maravillas y dos de
+       tecnología, ~85 palabras cada uno (unos 3 minutos a los 32 WPM del nivel).
+
+       Cada uno junta lo que el nivel enseña: mayúsculas y siglas, tildes, coma, punto y
+       coma, ¿? y ¡!, y números (años, decimales, un porcentaje). Los datos son reales y se
+       revisaron uno por uno: la persona los lee mientras teclea.
+
+       Ortografía según la RAE, y por eso se ven raros a primera vista: los números de cinco
+       cifras o más van con espacio ("13 000", "17 000"), los de cuatro sin nada ("5000",
+       "2430"), no se mezclan cifras con la palabra "mil" ("17 mil" es incorrecto; "13 000
+       millones" sí, porque "millón" es un sustantivo) y el signo de porcentaje va separado
+       de la cifra ("5 %"). */
+    public static final List<String> TEXTO_TEST_FINAL_INTERMEDIO = List.of(
+            "¿Sabías que Machu Picchu se construyó hacia 1450, por orden del inca Pachacútec? "
+                    + "Está a 2430 metros sobre el nivel del mar, y muchos de sus muros encajan tan "
+                    + "bien que no necesitaron mortero. Los conquistadores españoles nunca la "
+                    + "encontraron; en 1911, Hiram Bingham la dio a conocer al mundo, guiado por "
+                    + "campesinos de la zona. En 1983 la UNESCO la declaró Patrimonio de la Humanidad "
+                    + "y, en 2007, fue elegida una de las siete nuevas maravillas del mundo. ¡Nada mal "
+                    + "para más de 500 años de historia!",
+            "El telescopio James Webb despegó el 25 de diciembre de 2021. Su espejo principal "
+                    + "mide 6,5 metros y está formado por 18 piezas hexagonales cubiertas de oro; como "
+                    + "no cabía en el cohete, viajó plegado y se abrió en el espacio. Hoy trabaja a 1,5 "
+                    + "millones de kilómetros de la Tierra, protegido del Sol por un escudo del tamaño "
+                    + "de una cancha de tenis. ¿Para qué tanto esfuerzo? Para ver galaxias cuya luz "
+                    + "salió hace más de 13 000 millones de años. ¡Es como mirar el pasado!",
+            "El canal de Panamá se inauguró el 15 de agosto de 1914 y une dos océanos en unos 80 "
+                    + "kilómetros. Como el terreno es más alto que el mar, los barcos suben por "
+                    + "esclusas hasta el lago Gatún, a 26 metros de altura, y luego bajan del otro "
+                    + "lado; el cruce dura entre 8 y 10 horas. Por él pasa cerca del 5 % del comercio "
+                    + "marítimo del mundo. ¿Y antes? Ir por mar de Nueva York a San Francisco "
+                    + "obligaba a rodear toda Sudamérica. ¡Más de 100 años y sigue sorprendiendo!",
+            "En 1946 se presentó ENIAC, una de las primeras computadoras electrónicas. Pesaba "
+                    + "unas 27 toneladas, ocupaba una sala entera y usaba más de 17 000 tubos de "
+                    + "vacío; podía hacer 5000 sumas por segundo, una velocidad asombrosa para su "
+                    + "época. Hoy, un teléfono que cabe en el bolsillo hace miles de millones de "
+                    + "operaciones en ese mismo segundo. ¿Lo más curioso? Buena parte de su "
+                    + "programación la hicieron seis mujeres, cuyo trabajo tardó décadas en ser "
+                    + "reconocido. ¡La historia de la informática también lleva sus nombres!");
+
     /* LA TILDE, que hasta ahora Basico exigia sin ensenar nunca.
 
        La guia de contenido pide tildes en el 10% de las oraciones del nivel, y varios bancos

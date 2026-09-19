@@ -1233,6 +1233,7 @@ public class EjercicioServiceImpl implements EjercicioService {
             case "basico_linea_base" -> ContenidoCurado.ORACIONES_BASICO_LINEA_BASE;
             case "basico_teclas_nuevas" -> ContenidoCurado.ORACIONES_BASICO_TECLAS_NUEVAS;
             case "test_final_basico" -> ContenidoCurado.TEXTO_TEST_FINAL_BASICO;
+            case "test_final_intermedio" -> ContenidoCurado.TEXTO_TEST_FINAL_INTERMEDIO;
             case "test_nivel_basico" -> ContenidoCurado.TEXTO_TEST_NIVEL_BASICO;
             default -> throw new ApiException("Banco de oraciones desconocido: " + banco);
         };
@@ -2687,6 +2688,16 @@ public class EjercicioServiceImpl implements EjercicioService {
                 TipoEjercicio.DICTADO_VOZ,
                 "{\"modo\":\"tts\",\"wpmObjetivo\":55,\"puntoFinalOpcional\":true}",
                 NivelCurso.INTERMEDIO, 3, 41);
+
+        /* EL EXAMEN DE INTERMEDIO (18-sep-2026): cierra el sendero, después del dictado. Sin
+           Prueba de nivel, decisión del usuario: Intermedio se aprueba solo con este examen.
+           Mismas reglas que el de Básico: 32 WPM y 92%, y no se deja dar mientras quede algún
+           nodo de una sola estrella. Sirve UNO de sus cuatro textos al azar en cada intento. */
+        crearEnCursoSiNoExiste("Test Final de Intermedio",
+                "El examen del nivel: mayúsculas, tildes, signos y números en un solo texto.",
+                TipoEjercicio.ORACIONES_TEMATICAS,
+                "{\"banco\":\"test_final_intermedio\",\"cantidad\":1}",
+                NivelCurso.INTERMEDIO, 3, 42, RolEjercicioNivel.TEST_FINAL);
     }
 
 
