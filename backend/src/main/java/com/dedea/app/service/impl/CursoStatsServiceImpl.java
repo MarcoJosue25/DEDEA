@@ -92,9 +92,11 @@ public class CursoStatsServiceImpl implements CursoStatsService {
        disfrazado de rescate. Aprobar por acá da UNA estrella: pasaste, pero con ayuda. */
     public static final BigDecimal ULTIMO_INTENTO_PRECISION = BigDecimal.valueOf(90);
 
-    // Test de Nivel: precisión ≥80% Y WPM ≥ el umbral de aprobar ese nivel (confirmado
-    // con el usuario — no es solo precisión).
-    private static final BigDecimal UMBRAL_TEST_NIVEL_PRECISION = BigDecimal.valueOf(80);
+    /* Test de Nivel (la "Prueba de nivel"): precisión ≥95% Y WPM ≥ el umbral de aprobar ese
+       nivel. Subió de 80% el 18-sep-2026, decisión del usuario: "lo que importa es la
+       precisión, no la velocidad". Con 80% saltarse el nivel entero salía MÁS fácil que
+       terminarlo (el Test Final pide 90/92/94%); 95% queda por encima de los tres. */
+    private static final BigDecimal UMBRAL_TEST_NIVEL_PRECISION = BigDecimal.valueOf(95);
 
     @Override
     public CursoStatsResponse obtenerStatsPorNivel(String identificadorTemporal, NivelCurso nivel) {
@@ -125,6 +127,10 @@ public class CursoStatsServiceImpl implements CursoStatsService {
                 .findByIdentificadorTemporalAndNivel(identificadorTemporal, nivel)
                 .orElseGet(() -> crearProgresoInicial(identificadorTemporal, nivel));
 
+        Ejercicio prueba = ejercicioRepository
+                .findFirstByNivelAndRolEnNivelAndActivoTrue(nivel, RolEjercicioNivel.TEST_NIVEL)
+                .orElse(null);
+
         return CursoStatsResponse.builder()
                 .nivel(nivel.name())
                 .wpmPromedio(wpmPromedio)
@@ -134,6 +140,9 @@ public class CursoStatsServiceImpl implements CursoStatsService {
                 .aprobado(Boolean.TRUE.equals(progreso.getAprobado()))
                 .teclasMasFalladas(teclas)
                 .nodosPorMejorar(contarPorMejorar(identificadorTemporal, nivel))
+                .pruebaNivelId(prueba != null ? prueba.getId() : null)
+                .pruebaNivelWpm(prueba != null ? UMBRAL_WPM.get(nivel) : null)
+                .pruebaNivelPrecision(prueba != null ? UMBRAL_TEST_NIVEL_PRECISION : null)
                 .build();
     }
 

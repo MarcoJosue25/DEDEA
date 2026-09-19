@@ -2,6 +2,7 @@ package com.dedea.app.repository;
 
 import com.dedea.app.model.Ejercicio;
 import com.dedea.app.model.enums.NivelCurso;
+import com.dedea.app.model.enums.RolEjercicioNivel;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -47,4 +48,7 @@ public interface EjercicioRepository extends JpaRepository<Ejercicio, Integer> {
        que ni siquiera pueda haber empate. */
     List<Ejercicio> findTop1ByNivelAndActivoTrueAndOrdenGreaterThanOrderByOrdenAsc(
             NivelCurso nivel, Integer orden);
+
+    // La Prueba de nivel (rol TEST_NIVEL) de un nivel, para anunciarla junto al sendero.
+    Optional<Ejercicio> findFirstByNivelAndRolEnNivelAndActivoTrue(NivelCurso nivel, RolEjercicioNivel rol);
 }

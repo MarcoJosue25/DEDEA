@@ -18,7 +18,7 @@ public interface CursoStatsService {
        es puntual por ejercicio:
        - Ejercicio normal: si supera SU umbral (propio o el default del nivel), marca
          ese nodo como completado en ProgresoEjercicioCurso.
-       - TEST_NIVEL: si precisión ≥80% y WPM ≥ el umbral de aprobar el nivel, aprueba el
+       - TEST_NIVEL: si precisión ≥95% y WPM ≥ el umbral de aprobar el nivel, aprueba el
          nivel ENTERO de una (sin pasar por los demás ejercicios).
        - TEST_FINAL: mismo umbral que aprobar el nivel; si lo alcanza, es el único
          gatillo real de ProgresoCursoNivel.aprobado.
