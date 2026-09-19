@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { NivelCurso, ProgresoEjercicioResponse, ResultadoCursoResponse } from '../../types';
-import { NOMBRE_NIVEL, colorPorMejorar, llegoAlTestFinal } from '../../core/curso/sendero';
+import { NOMBRE_NIVEL, colorPorMejorar, enConstruccion, llegoAlTestFinal } from '../../core/curso/sendero';
 import Icono from '../ui/Icono';
 import Estrellas from './Estrellas';
 import Confeti from './Confeti';
@@ -284,7 +284,9 @@ const RecompensaCurso = ({
               : 'Cerraste el nivel con el Test Final.'}
           </p>
 
-          {nivelDesbloqueado && (
+          {/* Un nivel en construcción no se anuncia como abierto: el backend lo desbloquea,
+              pero la pantalla del nivel sigue cerrada. */}
+          {nivelDesbloqueado && !enConstruccion(nivelDesbloqueado) && (
             <div className="mt-6 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold"
               style={{ background: 'rgba(0,241,253,0.12)', color: 'var(--color-cian)' }}>
               <Icono nombre="lock_open" tamano={18} />

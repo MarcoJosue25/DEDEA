@@ -14,16 +14,24 @@ export const nivelSiguiente = (nivel: NivelCurso): NivelCurso | null => {
   return i >= 0 ? ORDEN_NIVELES[i + 1] ?? null : null;
 };
 
+/* NIVELES EN CONSTRUCCIÓN: cerrados aunque el anterior esté aprobado. Avanzado entra acá el
+   18-sep-2026, decisión del usuario: Intermedio ya puede aprobarse con su Test Final, y
+   Avanzado todavía no está terminado (entre otras cosas trae `N.º`, que no se teclea en un
+   teclado latinoamericano). El backend lo desbloquea igual al aprobar Intermedio; lo que lo
+   cierra es esta lista, y sacarlo de acá es lo que lo abre. `DESBLOQUEAR_TODO_EL_CURSO` lo
+   sigue abriendo en desarrollo, para poder trabajar en él. */
+const EN_CONSTRUCCION: ReadonlySet<NivelCurso> = new Set<NivelCurso>(['AVANZADO']);
+
+export const enConstruccion = (nivel: NivelCurso): boolean => EN_CONSTRUCCION.has(nivel);
+
 /* Lo que dice un nivel bloqueado, igual en el selector y en la pantalla de su sendero.
    Un texto por nivel porque "aprueba el nivel anterior" obliga a adivinar cuál es.
 
-   ⚠️ Mientras Intermedio no tenga su Test Final, terminar sus ejercicios NO lo aprueba (lo
-   aprueba el examen), así que el mensaje de Avanzado promete algo que todavía no se puede
-   cumplir. Se aceptó a sabiendas el 18-sep-2026: Avanzado queda cerrado mientras se termina
-   su contenido, y el texto pasa a ser literal en cuanto exista ese examen. */
+   ⚠️ El de Avanzado lo eligió el usuario sabiendo que, mientras siga en construcción,
+   completar Intermedio todavía no lo abre: pasa a ser literal al sacarlo de la lista. */
 const MENSAJE_BLOQUEO: Partial<Record<NivelCurso, string>> = {
   INTERMEDIO: 'Completa el nivel Básico para empezar el Intermedio.',
-  AVANZADO: 'Termina el nivel Intermedio para desbloquear el Avanzado.',
+  AVANZADO: 'Se desbloquea al completar el curso de Intermedio.',
 };
 
 export const mensajeDeBloqueo = (nivel: NivelCurso): string =>

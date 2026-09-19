@@ -16,7 +16,7 @@ import DesgloseTandas from '../components/curso/DesgloseTandas';
 import ConfirmarRepeticion from '../components/curso/ConfirmarRepeticion';
 import { useApariencia } from '../core/apariencia/useApariencia';
 import { DESBLOQUEAR_TODO_EL_CURSO } from '../core/desarrollo';
-import { NOMBRE_NIVEL, llegoAlTestFinal } from '../core/curso/sendero';
+import { NOMBRE_NIVEL, enConstruccion, llegoAlTestFinal } from '../core/curso/sendero';
 
 interface ResultadoSesion {
   wpm: number;
@@ -283,7 +283,8 @@ const ResultadosView = () => {
      el primer nodo, aunque ya vayas por el veinte. Aprobada, se va al nivel que acaba de
      abrirse; no aprobada, a retomar el curso donde ibas (o a empezarlo). */
   const esPruebaNivel = recompensa?.rolEnNivel === 'TEST_NIVEL';
-  const nivelAbierto = esPruebaNivel ? recompensa?.nivelDesbloqueado ?? null : null;
+  const nivelAbierto = esPruebaNivel && recompensa?.nivelDesbloqueado
+    && !enConstruccion(recompensa.nivelDesbloqueado) ? recompensa.nivelDesbloqueado : null;
   const retomarCurso = esPruebaNivel && !recompensa?.superado
     ? nodos.find((n) => !n.completado) ?? null
     : null;

@@ -9,7 +9,9 @@ import BloqueoTestFinal from '../components/curso/BloqueoTestFinal';
 import { offsetSerpiente } from "../components/curso/geometriaSendero";
 import { DESBLOQUEAR_TODO_EL_CURSO } from '../core/desarrollo';
 import { useApariencia } from '../core/apariencia/useApariencia';
-import { NOMBRE_NIVEL, llegoAlTestFinal, mensajeDeBloqueo, nivelSiguiente } from '../core/curso/sendero';
+import {
+  NOMBRE_NIVEL, enConstruccion, llegoAlTestFinal, mensajeDeBloqueo, nivelSiguiente,
+} from '../core/curso/sendero';
 
 const NIVELES_VALIDOS: NivelCurso[] = ['BASICO', 'INTERMEDIO', 'AVANZADO'];
 
@@ -129,8 +131,9 @@ const CursoNivelView = () => {
 
   /* DESARROLLO: el interruptor saltea la pantalla de "nivel bloqueado". Se deja el
      bloque entero en pie —no se borra— porque es lo que ve el usuario real y hay que
-     poder volver a él poniendo el interruptor en false. */
-  if (!DESBLOQUEAR_TODO_EL_CURSO && !stats?.desbloqueado) {
+     poder volver a él poniendo el interruptor en false. Un nivel en construcción cae acá
+     aunque el backend ya lo haya desbloqueado. */
+  if (!DESBLOQUEAR_TODO_EL_CURSO && (enConstruccion(nivel) || !stats?.desbloqueado)) {
     return (
       <div className="mx-auto flex max-w-xl flex-col items-center gap-4 py-16 text-center">
         <span className="material-symbols-outlined text-5xl text-gris-texto/50">lock</span>

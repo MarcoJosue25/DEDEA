@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ProgresoEjercicioResponse } from '../../types';
-import { llegoAlTestFinal, nivelSiguiente } from './sendero';
+import { enConstruccion, llegoAlTestFinal, nivelSiguiente } from './sendero';
 
 let siguienteId = 1;
 const nodo = (cambios: Partial<ProgresoEjercicioResponse> = {}): ProgresoEjercicioResponse => ({
@@ -53,5 +53,18 @@ describe('nivelSiguiente', () => {
 
   it('después de Avanzado no hay otro', () => {
     expect(nivelSiguiente('AVANZADO')).toBeNull();
+  });
+});
+
+/* Avanzado queda cerrado mientras se termina, aunque Intermedio ya pueda aprobarse
+   (decisión del usuario, 18-sep-2026). Sacarlo de la lista es lo que lo abre. */
+describe('enConstruccion', () => {
+  it('Avanzado está en construcción', () => {
+    expect(enConstruccion('AVANZADO')).toBe(true);
+  });
+
+  it('Básico e Intermedio no', () => {
+    expect(enConstruccion('BASICO')).toBe(false);
+    expect(enConstruccion('INTERMEDIO')).toBe(false);
   });
 });

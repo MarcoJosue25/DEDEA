@@ -5,7 +5,7 @@ import { obtenerStatsCursoPorNivel, obtenerProgresoCursoPorNivel } from '../api/
 import Spinner from '../components/ui/Spinner';
 import Icono from '../components/ui/Icono';
 import { DESBLOQUEAR_TODO_EL_CURSO } from '../core/desarrollo';
-import { mensajeDeBloqueo } from '../core/curso/sendero';
+import { enConstruccion, mensajeDeBloqueo } from '../core/curso/sendero';
 
 /* Cada nivel se presenta por lo que SE APRENDE en él, no solo por su nombre. "Básico /
    Intermedio / Avanzado" no le dice a nadie qué va a hacer adentro ni por qué empezar;
@@ -106,8 +106,10 @@ const CursoSelectorView = () => {
         {NIVELES.map((n) => {
           const { stats, progreso } = datos[n.id];
           /* DESARROLLO: con el interruptor puesto los tres niveles se abren. `aprobado`
-             NO se toca — es el estado real y sigue pintando la tarjeta como corresponde. */
-          const desbloqueado = DESBLOQUEAR_TODO_EL_CURSO || Boolean(stats?.desbloqueado);
+             NO se toca — es el estado real y sigue pintando la tarjeta como corresponde.
+             Un nivel en construcción queda cerrado aunque el backend lo haya desbloqueado. */
+          const desbloqueado = DESBLOQUEAR_TODO_EL_CURSO
+            || (!enConstruccion(n.id) && Boolean(stats?.desbloqueado));
           const aprobado = Boolean(stats?.aprobado);
           const hechos = progreso.filter((p) => p.completado).length;
           const pct = progreso.length > 0 ? (hechos / progreso.length) * 100 : 0;
