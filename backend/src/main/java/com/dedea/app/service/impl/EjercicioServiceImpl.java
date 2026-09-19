@@ -118,7 +118,7 @@ public class EjercicioServiceImpl implements EjercicioService {
             if (latidos != null && latidos.size() > 1) {
                 return new EjercicioContenidoResponse(ejercicio.getId(), ejercicio.getTitulo(),
                         ejercicio.getTipo().name(), latidos.get(0).getTexto(), config, null, null,
-                        latidos, null);
+                        latidos, null, cursoStatsService.umbralesDeLatidos(ejercicio));
             }
         }
 
@@ -132,7 +132,8 @@ public class EjercicioServiceImpl implements EjercicioService {
                    latidos sigue recibiendo un ejercicio válido en vez de uno cuádruple. */
                 return new EjercicioContenidoResponse(ejercicio.getId(), ejercicio.getTitulo(),
                         ejercicio.getTipo().name(), latidos.get(0).getTexto(), config, null, null,
-                        latidos, teclasDelTutorial(letrasDelPaso(filas, grupo)));
+                        latidos, teclasDelTutorial(letrasDelPaso(filas, grupo)),
+                        cursoStatsService.umbralesDeLatidos(ejercicio));
             }
         }
 
@@ -191,7 +192,7 @@ public class EjercicioServiceImpl implements EjercicioService {
         return new EjercicioContenidoResponse(ejercicio.getId(), ejercicio.getTitulo(),
                 ejercicio.getTipo().name(), texto, config, null, null,
                 null, teclasTutorialFijas != null ? teclasTutorialFijas : tutorialPalabras,
-                (String) config.get("mensajeTutorial"), captionsTutorial);
+                (String) config.get("mensajeTutorial"), captionsTutorial, null);
     }
 
     /* GET /ejercicios/{id}/ultimo-intento: el quinto latido, el que se ofrece después de

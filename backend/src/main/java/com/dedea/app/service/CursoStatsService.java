@@ -3,6 +3,7 @@ package com.dedea.app.service;
 import com.dedea.app.dto.CursoStatsResponse;
 import com.dedea.app.dto.ProgresoEjercicioResponse;
 import com.dedea.app.dto.ResultadoCursoResponse;
+import com.dedea.app.dto.UmbralesLatidoResponse;
 import com.dedea.app.model.Ejercicio;
 import com.dedea.app.model.enums.NivelCurso;
 
@@ -31,4 +32,9 @@ public interface CursoStatsService {
 
     // Todo el sendero de un nivel: qué nodos existen y cuáles ya se completaron.
     List<ProgresoEjercicioResponse> obtenerProgresoPorNivel(String identificadorTemporal, NivelCurso nivel);
+
+    /* Lo que un nodo servido en latidos pide para aprobarse y lo que pide su quinto latido,
+       con las mismas reglas con que registrarProgresoEjercicio lo puntúa. Viaja con el
+       contenido para que el front no tenga los números escritos a mano. */
+    UmbralesLatidoResponse umbralesDeLatidos(Ejercicio ejercicio);
 }

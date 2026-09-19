@@ -236,6 +236,19 @@ export interface EjercicioContenidoResponse {
      todo el catálogo — hoy solo la trae "Fila de números", para decir qué dedo va en
      cada dígito. */
   captionsTutorial?: string[];
+  // Solo con `latidos`: lo que el nodo pide para aprobarse. Ver UmbralesLatido.
+  umbralesLatido?: UmbralesLatido;
+}
+
+/* Lo que un nodo servido en latidos pide para aprobarse (el promedio de sus dos últimos
+   latidos) y lo que pide su quinto latido, que se juzga solo por precisión. Lo manda el
+   servidor con las mismas reglas con que después lo puntúa, incluido el umbral propio del
+   ejercicio si lo tiene; el front ya no tiene estos números escritos. El SALTO de latidos no
+   viene acá: es navegación y vive en core/curso/latidos.ts. */
+export interface UmbralesLatido {
+  wpm: number;
+  precision: number;
+  ultimoIntentoPrecision: number;
 }
 
 /* Una tanda corta dentro de un ejercicio de letras. El nombre y la descripción se muestran

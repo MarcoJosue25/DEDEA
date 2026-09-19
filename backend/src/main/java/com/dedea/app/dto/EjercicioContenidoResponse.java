@@ -39,23 +39,28 @@ public record EjercicioContenidoResponse(
            trae "Fila de números", para decir qué dedo va en cada dígito. Casi ningún
            tutorial la necesita (la tecla ya se explica sola), así que va null salvo que el
            ejercicio la traiga en su configuración, igual que mensajeTutorial. */
-        List<String> captionsTutorial
+        List<String> captionsTutorial,
+        /* Solo con `latidos`: lo que el nodo pide para aprobarse y lo que pide su quinto
+           latido. Ver UmbralesLatidoResponse. */
+        UmbralesLatidoResponse umbralesLatido
 ) {
     /* Constructor corto para todo lo que no tiene latidos, que es la mayoría del catálogo.
-       Existe para no tener que escribir cuatro null al final en cada sitio de construcción —
+       Existe para no tener que escribir cinco null al final en cada sitio de construcción —
        y sobre todo para que agregar un campo más adelante no obligue a tocarlos todos. */
     public EjercicioContenidoResponse(Integer id, String titulo, String tipo, String texto,
                                       Map<String, Object> configuracion,
                                       List<TeclaEventoDTO> fantasmaEventos, Integer fantasmaWpm) {
-        this(id, titulo, tipo, texto, configuracion, fantasmaEventos, fantasmaWpm, null, null, null, null);
+        this(id, titulo, tipo, texto, configuracion, fantasmaEventos, fantasmaWpm, null, null, null, null, null);
     }
 
-    /* El de los nodos con latidos, que traen tutorial de teclas y ningún rótulo propio. */
+    /* El de los nodos con latidos, que traen tutorial de teclas, ningún rótulo propio y los
+       umbrales con que se decide entre tanda y tanda. */
     public EjercicioContenidoResponse(Integer id, String titulo, String tipo, String texto,
                                       Map<String, Object> configuracion,
                                       List<TeclaEventoDTO> fantasmaEventos, Integer fantasmaWpm,
-                                      List<LatidoResponse> latidos, List<String> teclasTutorial) {
+                                      List<LatidoResponse> latidos, List<String> teclasTutorial,
+                                      UmbralesLatidoResponse umbralesLatido) {
         this(id, titulo, tipo, texto, configuracion, fantasmaEventos, fantasmaWpm,
-                latidos, teclasTutorial, null, null);
+                latidos, teclasTutorial, null, null, umbralesLatido);
     }
 }

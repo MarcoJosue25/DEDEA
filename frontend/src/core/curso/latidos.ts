@@ -6,12 +6,17 @@
    volvería intocable. Acá la decisión se lee de corrido y se puede razonar sin abrir la
    vista.
 
-   ⚠️ LOS TRES UMBRALES ESTÁN ESCRITOS DOS VECES: acá y en CursoStatsServiceImpl. El
-   servidor es la autoridad —él decide si el nodo se aprueba y con cuántas estrellas—;
-   estas copias solo deciden QUÉ LATIDO VIENE DESPUÉS, que es una decisión de navegación y
-   tiene que tomarse sin ir y volver al servidor entre tanda y tanda. Si allá se
-   recalibran, hay que traerlos acá. Es el mismo trato que ya tiene el panel de exigencia
-   de los ejercicios con IA. */
+   LOS UMBRALES DE APROBAR NO ESTÁN ESCRITOS ACÁ. El servidor es la autoridad —él decide si
+   el nodo se aprueba y con cuántas estrellas— y manda con el contenido del nodo lo que pide
+   para aprobarlo y lo que pide el quinto latido (`umbralesLatido`). Estas funciones los
+   reciben como parámetro y solo deciden QUÉ LATIDO VIENE DESPUÉS, sin ir y volver al
+   servidor entre tanda y tanda. Hasta el 19-sep-2026 estaban copiados a mano en los dos
+   lados y había que acordarse de sincronizarlos; ahora no pueden separarse.
+
+   La excepción es el SALTO: vive solo acá, porque es navegación pura y el servidor nunca
+   lo usó para puntuar. */
+
+import type { UmbralesLatido } from '../../types';
 
 export interface ResultadoLatido {
   wpm: number;
@@ -24,15 +29,6 @@ export interface ResultadoLatido {
    intencional — la puerta es una salida de emergencia, no el camino habitual. */
 export const SALTO_WPM = 35;
 export const SALTO_PRECISION = 95;
-
-// Para completar el nodo por el camino normal. Ver CursoStatsServiceImpl.
-export const UMBRAL_WPM = 10;
-export const UMBRAL_PRECISION = 85;
-
-/* El quinto latido: solo precisión, sin exigencia de velocidad. Corrige justamente el
-   error de ir demasiado rápido, así que pedir además WPM sería un castigo disfrazado de
-   rescate. */
-export const ULTIMO_INTENTO_PRECISION = 90;
 
 // Nunca se sale antes del segundo: un solo latido bueno puede ser suerte.
 export const LATIDOS_MINIMOS = 2;
@@ -69,6 +65,7 @@ export const decidirSiguiente = (
   resultados: ResultadoLatido[],
   indice: number,
   total: number,
+  umbrales: UmbralesLatido,
   /* Falso en "un dedo": ahí cada tanda es un DEDO distinto, no una versión más difícil
      de la misma tanda, así que ir muy bien en los dos primeros no dice nada sobre los
      dos que faltan — saltar dejaría dedos enteros sin practicar. Verdadero por defecto
@@ -107,14 +104,19 @@ export const decidirSiguiente = (
 
   // Se acabaron los latidos: decide el promedio de los dos últimos.
   const nota = promediarUltimosDos(resultados);
-  return (nota.wpm >= UMBRAL_WPM && nota.precision >= UMBRAL_PRECISION)
+  return (nota.wpm >= umbrales.wpm && nota.precision >= umbrales.precision)
     ? 'aprobado'
     : 'ultimo-intento';
 };
 
-// El quinto latido no se promedia con nada: lo decidió él solo.
-export const decidirUltimoIntento = (resultado: ResultadoLatido): DecisionLatido =>
-  resultado.precision >= ULTIMO_INTENTO_PRECISION ? 'aprobado' : 'no-aprobado';
+/* El quinto latido no se promedia con nada: lo decidió él solo. Y solo por precisión, sin
+   exigencia de velocidad: corrige justamente el error de ir demasiado rápido, así que pedir
+   además WPM sería un castigo disfrazado de rescate. */
+export const decidirUltimoIntento = (
+  resultado: ResultadoLatido,
+  umbrales: UmbralesLatido,
+): DecisionLatido =>
+  resultado.precision >= umbrales.ultimoIntentoPrecision ? 'aprobado' : 'no-aprobado';
 
 /* La nota que viaja al servidor.
 

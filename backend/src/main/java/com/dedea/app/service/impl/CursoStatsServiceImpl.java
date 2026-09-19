@@ -4,6 +4,7 @@ import com.dedea.app.dto.CursoStatsResponse;
 import com.dedea.app.dto.DebilidadesResponse;
 import com.dedea.app.dto.ProgresoEjercicioResponse;
 import com.dedea.app.dto.ResultadoCursoResponse;
+import com.dedea.app.dto.UmbralesLatidoResponse;
 import com.dedea.app.model.Ejercicio;
 import com.dedea.app.model.ProgresoCursoNivel;
 import com.dedea.app.model.ProgresoEjercicioCurso;
@@ -77,20 +78,18 @@ public class CursoStatsServiceImpl implements CursoStatsService {
             NivelCurso.INTERMEDIO, BigDecimal.valueOf(75),
             NivelCurso.AVANZADO, BigDecimal.valueOf(80));
 
-    /* ---- Umbrales de los LATIDOS (solo ejercicios de letras del Curso) ----
+    /* ---- LATIDOS (solo ejercicios de letras del Curso) ----
 
-       SALTO: tras el segundo latido, quien va MUY por encima se ahorra los dos que faltan.
-       35 WPM es casi el doble de los 18 con los que se aprueba Básico entero: no es una
-       puerta para "el que va bien" sino para el que ya sabe teclear y está repasando.
-       Un aprendiz normal hace los cuatro, y eso es intencional. */
-    public static final int SALTO_WPM = 35;
-    public static final BigDecimal SALTO_PRECISION = BigDecimal.valueOf(95);
-
-    /* ÚLTIMO INTENTO: el quinto latido que se ofrece tras fallar los cuatro. Se juzga SOLO
+       ÚLTIMO INTENTO: el quinto latido que se ofrece tras fallar los cuatro. Se juzga SOLO
        por precisión — sin exigencia de velocidad — porque el error que corrige es
        justamente ir demasiado rápido. Pedir además WPM lo convertiría en un castigo
-       disfrazado de rescate. Aprobar por acá da UNA estrella: pasaste, pero con ayuda. */
-    public static final BigDecimal ULTIMO_INTENTO_PRECISION = BigDecimal.valueOf(90);
+       disfrazado de rescate. Aprobar por acá da UNA estrella: pasaste, pero con ayuda.
+
+       Este umbral y el de aprobar el nodo viajan al front con el contenido
+       (umbralesDeLatidos). El SALTO de latidos (35 WPM y 95%) vive solo en el front: es una
+       decisión de navegación entre tandas que el servidor nunca usó para puntuar, y hasta el
+       19-sep-2026 había aquí una copia muerta de esos dos números. */
+    private static final BigDecimal ULTIMO_INTENTO_PRECISION = BigDecimal.valueOf(90);
 
     /* Test de Nivel (la "Prueba de nivel"): precisión ≥95% Y WPM ≥ el umbral de aprobar ese
        nivel. Subió de 80% el 18-sep-2026, decisión del usuario: "lo que importa es la
@@ -177,10 +176,8 @@ public class CursoStatsServiceImpl implements CursoStatsService {
             umbralWpm = UMBRAL_WPM.get(nivel);
             umbralPrecision = BigDecimal.valueOf(UMBRAL_PRECISION.get(nivel));
         } else {
-            umbralWpm = ejercicio.getUmbralWpmPropio() != null
-                    ? ejercicio.getUmbralWpmPropio() : UMBRAL_WPM_EJERCICIO_DEFAULT.get(nivel);
-            umbralPrecision = ejercicio.getUmbralPrecisionPropia() != null
-                    ? ejercicio.getUmbralPrecisionPropia() : UMBRAL_PRECISION_EJERCICIO_DEFAULT.get(nivel);
+            umbralWpm = umbralWpmDelEjercicio(ejercicio);
+            umbralPrecision = umbralPrecisionDelEjercicio(ejercicio);
         }
 
         /* El QUINTO latido cambia las reglas: solo cuenta la precision, sin exigencia de
@@ -367,6 +364,29 @@ public class CursoStatsServiceImpl implements CursoStatsService {
          · el propio TEST FINAL, que no puede ser requisito de si mismo. */
     private boolean pideDosEstrellas(Ejercicio e) {
         return e.getTipo() != TipoEjercicio.LLUVIA_LETRAS && e.getRolEnNivel() != RolEjercicioNivel.TEST_FINAL;
+    }
+
+    // El mínimo de un nodo normal: el propio del ejercicio, o el default de su nivel.
+    private int umbralWpmDelEjercicio(Ejercicio ejercicio) {
+        return ejercicio.getUmbralWpmPropio() != null
+                ? ejercicio.getUmbralWpmPropio() : UMBRAL_WPM_EJERCICIO_DEFAULT.get(ejercicio.getNivel());
+    }
+
+    private BigDecimal umbralPrecisionDelEjercicio(Ejercicio ejercicio) {
+        return ejercicio.getUmbralPrecisionPropia() != null
+                ? ejercicio.getUmbralPrecisionPropia() : UMBRAL_PRECISION_EJERCICIO_DEFAULT.get(ejercicio.getNivel());
+    }
+
+    /* Los nodos servidos en latidos son siempre nodos normales del sendero (Fundamentos y los
+       dos recorridos de un dedo), así que su mínimo es el de la rama normal de
+       registrarProgresoEjercicio: los mismos dos auxiliares, sin copia de por medio. */
+    @Override
+    public UmbralesLatidoResponse umbralesDeLatidos(Ejercicio ejercicio) {
+        if (ejercicio.getNivel() == null) return null; // Ejercicios Base: sin latidos que juzgar
+        return new UmbralesLatidoResponse(
+                umbralWpmDelEjercicio(ejercicio),
+                umbralPrecisionDelEjercicio(ejercicio),
+                ULTIMO_INTENTO_PRECISION);
     }
 
     private boolean estaPorMejorar(ProgresoEjercicioCurso p) {

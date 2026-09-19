@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import type {
   SesionProgresoDTO, TeclaStatsRequest, NgramStatsRequest, TeclaEventoRequest,
   EjercicioContenidoResponse, IntentoResumen, NivelCurso, ProgresoEjercicioResponse,
+  UmbralesLatido,
 } from '../types';
 import {
   obtenerContenidoEjercicio, obtenerContenidoConFantasma, obtenerContenidoConFantasmaSimulado,
@@ -174,6 +175,10 @@ const CursoPracticaView = () => {
      ejercicio — y el "0:18" de la pantalla de resultados sería falso. */
   const tiempoNodoMsRef = useRef(0);
   const latidosRef = useRef<{ nombre: string; descripcion: string; texto: string }[]>([]);
+  /* Lo que el nodo pide para aprobarse y lo que pide su quinto latido. Llegan con el
+     contenido, calculados por el servidor con las mismas reglas con que después puntúa;
+     null en todo lo que no se sirve en latidos. */
+  const umbralesLatidoRef = useRef<UmbralesLatido | null>(null);
   /* El mismo dato en estado, solo para pintar. El ref existe porque lo lee handleKeyDown
      —que se registra una vez y vería un valor congelado si leyera el estado—; el estado
      existe porque leer un ref durante el render está prohibido en este repo, y con razón:
@@ -223,6 +228,7 @@ const CursoPracticaView = () => {
   const [resumen, setResumen] = useState<{
     nombre: string; indice: number; total: number;
     wpm: number; precision: number; aciertos: number; cierre: CierreLatido;
+    umbrales: UmbralesLatido;
   } | null>(null);
   const enPausaRef = useRef(false);
   const pendienteRef = useRef<(() => void) | null>(null);
@@ -598,6 +604,7 @@ const CursoPracticaView = () => {
 
     const conLatidos = (data.latidos?.length ?? 0) > 0;
     latidosRef.current = data.latidos ?? [];
+    umbralesLatidoRef.current = data.umbralesLatido ?? null;
     setLatidosVista((data.latidos ?? []).map((l) => ({ nombre: l.nombre, descripcion: l.descripcion })));
     resultadosLatidosRef.current = [];
     tiempoNodoMsRef.current = 0;
@@ -1178,14 +1185,25 @@ const CursoPracticaView = () => {
     resultadosLatidosRef.current = [...resultadosLatidosRef.current, resultado];
     tiempoNodoMsRef.current += transcurridoMsRef.current;
 
+    /* Un nodo con latidos siempre trae sus umbrales (lo comprueba un test del catálogo).
+       Si faltaran —un backend anterior al 19-sep-2026— no hay con qué decidir entre
+       tandas: el nodo termina acá y el servidor lo puntúa con sus propias reglas. Nada de
+       números de respaldo escritos aquí, que es justo la copia que se quitó. */
+    const umbrales = umbralesLatidoRef.current;
+    if (!umbrales) {
+      console.error('El nodo trae latidos pero no sus umbrales: se termina sin decidir entre tandas.');
+      return false;
+    }
+
     // El quinto latido lo decide él solo: no se promedia con los cuatro fallos.
     if (porUltimoIntentoRef.current) {
-      decidirUltimoIntento(resultado); // el veredicto real lo da el servidor
-      return false;                    // en los dos casos el nodo termina acá
+      decidirUltimoIntento(resultado, umbrales); // el veredicto real lo da el servidor
+      return false;                              // en los dos casos el nodo termina acá
     }
 
     const decision = decidirSiguiente(
       resultadosLatidosRef.current, indiceLatidoRef.current, latidosRef.current.length,
+      umbrales,
       /* "Un dedo" no salta: cada tanda es un dedo distinto, no una versión más difícil de
          la misma — ir bien en los dos primeros no dice nada de los dos que faltan. */
       !esUnDedo);
@@ -1204,6 +1222,7 @@ const CursoPracticaView = () => {
         precision: resultado.precision,
         aciertos: caracteresCorrectosRef.current,
         cierre,
+        umbrales,
       });
     };
 
@@ -2933,6 +2952,7 @@ const CursoPracticaView = () => {
             precision={resumen.precision}
             aciertos={resumen.aciertos}
             cierre={resumen.cierre}
+            umbrales={resumen.umbrales}
             esOscuro={esOscuro}
             onContinuar={continuarTrasResumen}
           />

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import Icono from '../ui/Icono';
-import { UMBRAL_PRECISION, UMBRAL_WPM, ULTIMO_INTENTO_PRECISION } from '../../core/curso/latidos';
+import type { UmbralesLatido } from '../../types';
 
 export type CierreLatido = 'siguiente' | 'aprobado' | 'ultimo-intento';
 
@@ -12,6 +12,8 @@ interface Props {
   precision: number;
   aciertos: number;
   cierre: CierreLatido;
+  // Los del nodo, tal como los manda el servidor con el contenido.
+  umbrales: UmbralesLatido;
   esOscuro: boolean;
   onContinuar: () => void;
 }
@@ -50,7 +52,10 @@ interface Props {
    limpio se lee como información y no como aviso, y acá siempre hay algo que corregir. */
 type Trio = [number, number, number];
 
-const PISO_ALERTA = 75;          // por debajo de esto, rojo pleno
+/* Diez puntos por debajo del umbral, rojo pleno (con el 85% de Básico, en 75%). Va relativo
+   al umbral y no como un porcentaje fijo porque el umbral lo manda el servidor por nodo: con
+   un piso fijo, un nodo que pidiera 75% o menos dividiría por cero. */
+const TRAMO_ALERTA = 10;
 const ROJO_MINIMO = 0.22;        // el "poco de rojo" que lleva hasta el ámbar más suave
 
 const AMBAR: Trio = [255, 197, 61];   // el mismo #FFC53D de los carriles de la lluvia
@@ -67,13 +72,13 @@ const mezclar = (a: Trio, b: Trio, t: number, alfa = 1) => {
   return alfa === 1 ? `rgb(${r}, ${g}, ${azul})` : `rgba(${r}, ${g}, ${azul}, ${alfa})`;
 };
 
-/* 0 = ámbar (justo debajo del umbral) · 1 = rojo pleno (PISO_ALERTA o menos). */
-const intensidadAlerta = (precision: number) => {
-  const crudo = (UMBRAL_PRECISION - precision) / (UMBRAL_PRECISION - PISO_ALERTA);
+/* 0 = ámbar (justo debajo del umbral) · 1 = rojo pleno (TRAMO_ALERTA puntos por debajo). */
+const intensidadAlerta = (precision: number, umbral: number) => {
+  const crudo = (umbral - precision) / TRAMO_ALERTA;
   return ROJO_MINIMO + (1 - ROJO_MINIMO) * Math.min(1, Math.max(0, crudo));
 };
 
-const lectura = (precision: number) => {
+const lectura = (precision: number, umbral: number) => {
   if (precision >= 95) {
     return {
       icono: 'auto_awesome',
@@ -82,7 +87,7 @@ const lectura = (precision: number) => {
       intensidad: 0,
     };
   }
-  if (precision >= UMBRAL_PRECISION) {
+  if (precision >= umbral) {
     return {
       icono: 'thumb_up',
       titulo: '¡Bien hecho!',
@@ -98,20 +103,22 @@ const lectura = (precision: number) => {
      quien ya lo vio en el marcador; lo que hace falta es la causa y la salida. La segunda
      frase es la misma en los dos casos a propósito: es la instrucción, y no cambia porque
      falles más o menos. */
-  const cola = `Baja el ritmo: para aprobar hacen falta ${UMBRAL_PRECISION}% de precisión, `
+  const cola = `Baja el ritmo: para aprobar hacen falta ${umbral}% de precisión, `
     + 'y la velocidad llega sola después.';
+  // "Casi" es la primera mitad del tramo de alerta: con el 85% de Básico, desde 80%.
+  const casi = precision >= umbral - TRAMO_ALERTA / 2;
   return {
     icono: 'warning',
-    titulo: precision >= 80 ? 'Casi lo tienes' : 'Cuidado con la precisión',
-    mensaje: precision >= 80
+    titulo: casi ? 'Casi lo tienes' : 'Cuidado con la precisión',
+    mensaje: casi
       ? `Te falta muy poco para el objetivo. ${cola}`
       : `Los dedos todavía van más rápido de lo que recuerdan. ${cola}`,
-    intensidad: intensidadAlerta(precision),
+    intensidad: intensidadAlerta(precision, umbral),
   };
 };
 
 const ResumenLatido = ({
-  nombre, indice, total, wpm, precision, aciertos, cierre, esOscuro, onContinuar,
+  nombre, indice, total, wpm, precision, aciertos, cierre, umbrales, esOscuro, onContinuar,
 }: Props) => {
   useEffect(() => {
     const manejar = (e: KeyboardEvent) => {
@@ -125,7 +132,7 @@ const ResumenLatido = ({
     return () => window.removeEventListener('keydown', manejar);
   }, [onContinuar]);
 
-  const normal = lectura(precision);
+  const normal = lectura(precision, umbrales.precision);
 
   const { icono, titulo, mensaje, intensidad } = cierre === 'aprobado'
     ? {
@@ -142,8 +149,8 @@ const ResumenLatido = ({
            esta ventana sin saber que había fallado, ni contra qué, ni que ese intento es
            el que decide si el ejercicio cuenta. */
         mensaje: `Con ${wpm} WPM y ${Math.round(precision)}% no alcanzas el mínimo del ejercicio `
-          + `(${UMBRAL_WPM} WPM y ${UMBRAL_PRECISION}%). Este último intento es el que decide: `
-          + `si llegas a ${ULTIMO_INTENTO_PRECISION}% de precisión, el ejercicio queda aprobado. `
+          + `(${umbrales.wpm} WPM y ${umbrales.precision}%). Este último intento es el que decide: `
+          + `si llegas a ${umbrales.ultimoIntentoPrecision}% de precisión, el ejercicio queda aprobado. `
           + 'Aquí la velocidad no cuenta.',
         intensidad: 0,
       }

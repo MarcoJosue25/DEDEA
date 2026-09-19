@@ -203,6 +203,31 @@ class CatalogoCursoInvariantesTest {
                 .isEmpty();
     }
 
+    /* Un nodo servido en LATIDOS se juzga en el front entre tanda y tanda, con los umbrales
+       que le manda el servidor en el mismo contenido. Un nodo con latidos y sin umbrales se
+       quedaría sin poder decidir; uno sin latidos no los necesita. */
+    @Test
+    void todoNodoConLatidosTraeSusUmbrales() throws Exception {
+        CatalogoEnMemoria c = CatalogoEnMemoria.soloCurso();
+
+        List<String> fallas = new ArrayList<>();
+        int conLatidos = 0;
+        for (NivelCurso nivel : NivelCurso.values()) {
+            for (Ejercicio nodo : c.senderoActivo(nivel)) {
+                var r = c.servicio.generarContenido(nodo.getId(), null, null);
+                boolean tieneLatidos = r.latidos() != null && !r.latidos().isEmpty();
+                if (tieneLatidos) conLatidos++;
+                if (tieneLatidos != (r.umbralesLatido() != null)) {
+                    fallas.add(nivel + " o" + nodo.getOrden() + " \"" + nodo.getTitulo() + "\": "
+                            + (tieneLatidos ? "latidos sin umbrales" : "umbrales sin latidos"));
+                }
+            }
+        }
+
+        assertThat(conLatidos).as("si ningún nodo tuviera latidos, el test no probaría nada").isPositive();
+        assertThat(fallas).as("%n%s", String.join(System.lineSeparator(), fallas)).isEmpty();
+    }
+
     private static List<Ejercicio> conRol(List<Ejercicio> ejercicios, RolEjercicioNivel rol) {
         return ejercicios.stream().filter(e -> e.getRolEnNivel() == rol).toList();
     }

@@ -2,6 +2,7 @@ package com.dedea.app.service.impl;
 
 import com.dedea.app.dto.CursoStatsResponse;
 import com.dedea.app.dto.ResultadoCursoResponse;
+import com.dedea.app.dto.UmbralesLatidoResponse;
 import com.dedea.app.model.Ejercicio;
 import com.dedea.app.model.ProgresoCursoNivel;
 import com.dedea.app.model.enums.NivelCurso;
@@ -20,7 +21,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/* LA PRUEBA DE NIVEL: el atajo que aprueba un nivel entero sin recorrer su sendero.
+/* Las reglas con que el servidor puntúa el Curso.
+
+   LA PRUEBA DE NIVEL: el atajo que aprueba un nivel entero sin recorrer su sendero.
    Como se salta el nivel de una vez, tiene que exigir más precisión que terminarlo: 95%,
    decisión del usuario del 18-sep-2026 ("lo que importa es la precisión, no la
    velocidad"). Hasta entonces pedía 80%, menos que el propio Test Final. */
@@ -28,6 +31,7 @@ class CursoStatsServiceImplTest {
 
     private static final String UUID = "0f8fad5b-d9cb-469f-a165-70867728950e";
     private static final int ID_PRUEBA = 500;
+    private static final int ID_NODO_LATIDOS = 501;
 
     private final EjercicioRepository ejercicios = mock(EjercicioRepository.class);
     private CursoStatsServiceImpl servicio;
@@ -95,6 +99,64 @@ class CursoStatsServiceImplTest {
         assertThat(stats.getPruebaNivelId()).isNull();
         assertThat(stats.getPruebaNivelWpm()).isNull();
         assertThat(stats.getPruebaNivelPrecision()).isNull();
+    }
+
+    /* LOS UMBRALES DE LOS LATIDOS viajan al front con el contenido del nodo (desde el
+       19-sep-2026; antes estaban escritos a mano en core/curso/latidos.ts). Tienen que ser
+       exactamente los que usa el servidor al puntuar: si no, el front daría por aprobado entre
+       tanda y tanda un nodo que el servidor después suspende, o al revés. */
+    @Test
+    void losLatidosDeUnNodoDeBasicoPiden10Wpm85PorCientoY90EnElQuintoLatido() {
+        UmbralesLatidoResponse umbrales = servicio.umbralesDeLatidos(nodoDeLatidos(null, null));
+
+        assertThat(umbrales.wpm()).isEqualTo(10);
+        assertThat(umbrales.precision()).isEqualByComparingTo("85");
+        assertThat(umbrales.ultimoIntentoPrecision()).isEqualByComparingTo("90");
+    }
+
+    @Test
+    void losLatidosRespetanElUmbralPropioDelEjercicio() {
+        UmbralesLatidoResponse umbrales = servicio.umbralesDeLatidos(nodoDeLatidos(12, new BigDecimal("88")));
+
+        assertThat(umbrales.wpm()).isEqualTo(12);
+        assertThat(umbrales.precision()).isEqualByComparingTo("88");
+    }
+
+    @Test
+    void losUmbralesQueViajanSonLosMismosConQueSePuntua() {
+        Ejercicio nodo = nodoDeLatidos(12, new BigDecimal("88"));
+        UmbralesLatidoResponse u = servicio.umbralesDeLatidos(nodo);
+        BigDecimal centesima = new BigDecimal("0.01");
+
+        assertThat(puntuar(nodo, u.wpm(), u.precision(), false)).as("justo en el umbral aprueba").isTrue();
+        assertThat(puntuar(nodo, u.wpm() - 1, u.precision(), false)).as("un WPM menos no").isFalse();
+        assertThat(puntuar(nodo, u.wpm(), u.precision().subtract(centesima), false)).as("una centésima menos no").isFalse();
+
+        assertThat(puntuar(nodo, 0, u.ultimoIntentoPrecision(), true)).as("el quinto latido, solo precisión").isTrue();
+        assertThat(puntuar(nodo, 0, u.ultimoIntentoPrecision().subtract(centesima), true)).isFalse();
+    }
+
+    @Test
+    void unEjercicioBaseNoTieneLatidosQueJuzgar() {
+        Ejercicio base = Ejercicio.builder().id(7).titulo("Fundamentos").tipo(TipoEjercicio.LETRAS_BASICO).build();
+
+        assertThat(servicio.umbralesDeLatidos(base)).isNull();
+    }
+
+    private boolean puntuar(Ejercicio nodo, int wpm, BigDecimal precision, boolean porUltimoIntento) {
+        return servicio.registrarProgresoEjercicio(UUID, nodo, wpm, precision, porUltimoIntento).getSuperado();
+    }
+
+    private static Ejercicio nodoDeLatidos(Integer umbralWpmPropio, BigDecimal umbralPrecisionPropia) {
+        return Ejercicio.builder()
+                .id(ID_NODO_LATIDOS)
+                .titulo("Fundamentos: f j")
+                .tipo(TipoEjercicio.LETRAS_BASICO)
+                .nivel(NivelCurso.BASICO)
+                .orden(1)
+                .umbralWpmPropio(umbralWpmPropio)
+                .umbralPrecisionPropia(umbralPrecisionPropia)
+                .build();
     }
 
     private static Ejercicio pruebaDeNivel() {

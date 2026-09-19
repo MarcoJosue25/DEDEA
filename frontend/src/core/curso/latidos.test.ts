@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import type { UmbralesLatido } from '../../types';
 import {
   decidirSiguiente, decidirUltimoIntento, notaFinal, promediarUltimosDos,
-  SALTO_PRECISION, SALTO_WPM, UMBRAL_PRECISION, UMBRAL_WPM, ULTIMO_INTENTO_PRECISION,
-  type ResultadoLatido,
+  SALTO_PRECISION, SALTO_WPM, type ResultadoLatido,
 } from './latidos';
+
+// Los que manda el servidor para un nodo de Básico sin umbral propio.
+const UMBRALES: UmbralesLatido = { wpm: 10, precision: 85, ultimoIntentoPrecision: 90 };
 
 const flojo: ResultadoLatido = { wpm: 20, precision: 80 };
 const excelente: ResultadoLatido = { wpm: SALTO_WPM + 5, precision: SALTO_PRECISION + 2 };
-const aprobado: ResultadoLatido = { wpm: UMBRAL_WPM + 2, precision: UMBRAL_PRECISION + 3 };
+const aprobado: ResultadoLatido = { wpm: UMBRALES.wpm + 2, precision: UMBRALES.precision + 3 };
 
 describe('decidirSiguiente: el salto de latidos', () => {
   /* El bug del 11-sep-2026 (CLAUDE.md 6.20): un latido flojo seguido de uno excelente
@@ -15,27 +18,27 @@ describe('decidirSiguiente: el salto de latidos', () => {
      dos últimos — con el flojo adentro daba una estrella. El salto decía "ya sabés esto"
      y la pantalla decía "repítelo". */
   it('no salta con un latido flojo seguido de uno excelente', () => {
-    expect(decidirSiguiente([flojo, excelente], 1, 4)).toBe('siguiente');
+    expect(decidirSiguiente([flojo, excelente], 1, 4, UMBRALES)).toBe('siguiente');
   });
 
   it('salta cuando los DOS últimos superan el umbral, cada uno por separado', () => {
-    expect(decidirSiguiente([flojo, excelente, excelente], 2, 4)).toBe('aprobado');
+    expect(decidirSiguiente([flojo, excelente, excelente], 2, 4, UMBRALES)).toBe('aprobado');
   });
 
   it('nunca salta en el primer latido, por bueno que sea', () => {
-    expect(decidirSiguiente([excelente], 0, 4)).toBe('siguiente');
+    expect(decidirSiguiente([excelente], 0, 4, UMBRALES)).toBe('siguiente');
   });
 
   it('en "un dedo" no salta nunca: cada tanda es un dedo distinto', () => {
-    expect(decidirSiguiente([excelente, excelente], 1, 4, false)).toBe('siguiente');
-    expect(decidirSiguiente([excelente, excelente, excelente], 2, 4, false)).toBe('siguiente');
+    expect(decidirSiguiente([excelente, excelente], 1, 4, UMBRALES, false)).toBe('siguiente');
+    expect(decidirSiguiente([excelente, excelente, excelente], 2, 4, UMBRALES, false)).toBe('siguiente');
   });
 
   it('un promedio alto no alcanza si uno de los dos queda por debajo', () => {
     // Promedian 99% de precisión, pero el primero no llega a SALTO_PRECISION.
     const casi: ResultadoLatido = { wpm: SALTO_WPM + 10, precision: SALTO_PRECISION - 1 };
     const perfecto: ResultadoLatido = { wpm: SALTO_WPM + 10, precision: 100 };
-    expect(decidirSiguiente([casi, perfecto], 1, 4)).toBe('siguiente');
+    expect(decidirSiguiente([casi, perfecto], 1, 4, UMBRALES)).toBe('siguiente');
   });
 
   /* La garantía de fondo del arreglo, probada sobre muchas secuencias y no sobre un solo
@@ -57,7 +60,7 @@ describe('decidirSiguiente: el salto de latidos', () => {
       const resultados: ResultadoLatido[] = [];
       for (let indice = 0; indice < 3; indice++) {
         resultados.push(latidoAlAzar());
-        if (decidirSiguiente(resultados, indice, 4) === 'aprobado') {
+        if (decidirSiguiente(resultados, indice, 4, UMBRALES) === 'aprobado') {
           saltos++;
           expect(promediarUltimosDos(resultados).precision).toBeGreaterThanOrEqual(SALTO_PRECISION);
           break;
@@ -71,20 +74,29 @@ describe('decidirSiguiente: el salto de latidos', () => {
 
 describe('decidirSiguiente: el final del nodo', () => {
   it('con latidos pendientes y sin salto, sigue', () => {
-    expect(decidirSiguiente([aprobado], 0, 4)).toBe('siguiente');
-    expect(decidirSiguiente([aprobado, aprobado, aprobado], 2, 4)).toBe('siguiente');
+    expect(decidirSiguiente([aprobado], 0, 4, UMBRALES)).toBe('siguiente');
+    expect(decidirSiguiente([aprobado, aprobado, aprobado], 2, 4, UMBRALES)).toBe('siguiente');
   });
 
   it('en el último latido aprueba si el promedio de los dos últimos llega al umbral', () => {
-    expect(decidirSiguiente([flojo, flojo, aprobado, aprobado], 3, 4)).toBe('aprobado');
+    expect(decidirSiguiente([flojo, flojo, aprobado, aprobado], 3, 4, UMBRALES)).toBe('aprobado');
   });
 
   it('en el último latido ofrece el quinto intento si no llega', () => {
-    expect(decidirSiguiente([aprobado, aprobado, flojo, flojo], 3, 4)).toBe('ultimo-intento');
+    expect(decidirSiguiente([aprobado, aprobado, flojo, flojo], 3, 4, UMBRALES)).toBe('ultimo-intento');
   });
 
   it('"f j" tiene tres latidos: el tercero ya es el último', () => {
-    expect(decidirSiguiente([flojo, aprobado, aprobado], 2, 3)).toBe('aprobado');
+    expect(decidirSiguiente([flojo, aprobado, aprobado], 2, 3, UMBRALES)).toBe('aprobado');
+  });
+
+  /* Un nodo con umbral propio lo manda el servidor, y la decisión tiene que seguirlo: si
+     el front usara números suyos, daría por aprobado un nodo que el servidor suspende. */
+  it('decide con los umbrales que manda el servidor, no con números propios', () => {
+    const exigente: UmbralesLatido = { wpm: 14, precision: 92, ultimoIntentoPrecision: 95 };
+    expect(decidirSiguiente([aprobado, aprobado, aprobado, aprobado], 3, 4, exigente)).toBe('ultimo-intento');
+    expect(decidirUltimoIntento({ wpm: 12, precision: 93 }, UMBRALES)).toBe('aprobado');
+    expect(decidirUltimoIntento({ wpm: 12, precision: 93 }, exigente)).toBe('no-aprobado');
   });
 });
 
@@ -105,8 +117,9 @@ describe('promediarUltimosDos', () => {
 
 describe('el quinto latido', () => {
   it('se juzga solo por precisión', () => {
-    expect(decidirUltimoIntento({ wpm: 3, precision: ULTIMO_INTENTO_PRECISION })).toBe('aprobado');
-    expect(decidirUltimoIntento({ wpm: 80, precision: ULTIMO_INTENTO_PRECISION - 0.01 })).toBe('no-aprobado');
+    expect(decidirUltimoIntento({ wpm: 3, precision: UMBRALES.ultimoIntentoPrecision }, UMBRALES)).toBe('aprobado');
+    expect(decidirUltimoIntento({ wpm: 80, precision: UMBRALES.ultimoIntentoPrecision - 0.01 }, UMBRALES))
+      .toBe('no-aprobado');
   });
 
   it('su nota no se promedia con los latidos fallados', () => {

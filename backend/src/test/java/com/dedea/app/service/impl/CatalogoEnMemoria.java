@@ -1,6 +1,7 @@
 package com.dedea.app.service.impl;
 
 import com.dedea.app.dto.CursoStatsResponse;
+import com.dedea.app.dto.UmbralesLatidoResponse;
 import com.dedea.app.mapper.EntityMapper;
 import com.dedea.app.model.Ejercicio;
 import com.dedea.app.model.enums.NivelCurso;
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -42,6 +44,12 @@ class CatalogoEnMemoria {
     final Map<String, Ejercicio> porTitulo = new HashMap<>();
     final List<Huella> guardados = new ArrayList<>();
     final EjercicioServiceImpl servicio;
+
+    /* Lo que devuelve el servicio de estadísticas (un doble) cuando el generador le pide los
+       umbrales de un nodo con latidos. El cálculo de verdad lo prueba CursoStatsServiceImplTest;
+       acá solo interesa que el contenido los lleve. */
+    static final UmbralesLatidoResponse UMBRALES_LATIDO =
+            new UmbralesLatidoResponse(10, BigDecimal.valueOf(85), BigDecimal.valueOf(90));
 
     private CatalogoEnMemoria() throws Exception {
         EjercicioRepository ejercicios = mock(EjercicioRepository.class);
@@ -78,6 +86,7 @@ class CatalogoEnMemoria {
         CursoStatsService cursoStats = mock(CursoStatsService.class);
         when(cursoStats.obtenerStatsPorNivel(any(), any()))
                 .thenReturn(CursoStatsResponse.builder().teclasMasFalladas(List.of()).build());
+        when(cursoStats.umbralesDeLatidos(any())).thenReturn(UMBRALES_LATIDO);
 
         servicio = new EjercicioServiceImpl(
                 ejercicios, palabras, mock(DictadoAudioRepository.class),
