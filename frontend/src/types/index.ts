@@ -285,6 +285,10 @@ export interface CursoStatsResponse {
   aprobado: boolean;
   teclasMasFalladas: ItemDebilidad[];
   nodosPorMejorar: number;
+  // La Prueba de nivel y lo que exige. Los tres en null si el nivel todavía no tiene prueba.
+  pruebaNivelId: number | null;
+  pruebaNivelWpm: number | null;
+  pruebaNivelPrecision: number | null;
 }
 
 // Un nodo del sendero. El "actual" no viaja del backend: es el primer no-completado

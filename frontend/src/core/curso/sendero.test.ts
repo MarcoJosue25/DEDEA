@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ProgresoEjercicioResponse } from '../../types';
-import { llegoAlTestFinal } from './sendero';
+import { llegoAlTestFinal, nivelSiguiente } from './sendero';
 
 let siguienteId = 1;
 const nodo = (cambios: Partial<ProgresoEjercicioResponse> = {}): ProgresoEjercicioResponse => ({
@@ -41,5 +41,17 @@ describe('llegoAlTestFinal', () => {
 
   it('es falso en un nivel vacío', () => {
     expect(llegoAlTestFinal([])).toBe(false);
+  });
+});
+
+/* Lo usa la tarjeta de la Prueba de nivel para decir qué nivel se abre al aprobarla. */
+describe('nivelSiguiente', () => {
+  it('Básico abre Intermedio e Intermedio abre Avanzado', () => {
+    expect(nivelSiguiente('BASICO')).toBe('INTERMEDIO');
+    expect(nivelSiguiente('INTERMEDIO')).toBe('AVANZADO');
+  });
+
+  it('después de Avanzado no hay otro', () => {
+    expect(nivelSiguiente('AVANZADO')).toBeNull();
   });
 });

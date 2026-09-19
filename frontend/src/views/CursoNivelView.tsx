@@ -9,13 +9,7 @@ import BloqueoTestFinal from '../components/curso/BloqueoTestFinal';
 import { offsetSerpiente } from "../components/curso/geometriaSendero";
 import { DESBLOQUEAR_TODO_EL_CURSO } from '../core/desarrollo';
 import { useApariencia } from '../core/apariencia/useApariencia';
-import { llegoAlTestFinal, mensajeDeBloqueo } from '../core/curso/sendero';
-
-const NOMBRE_NIVEL: Record<NivelCurso, string> = {
-  BASICO: 'Básico',
-  INTERMEDIO: 'Intermedio',
-  AVANZADO: 'Avanzado',
-};
+import { NOMBRE_NIVEL, llegoAlTestFinal, mensajeDeBloqueo, nivelSiguiente } from '../core/curso/sendero';
 
 const NIVELES_VALIDOS: NivelCurso[] = ['BASICO', 'INTERMEDIO', 'AVANZADO'];
 
@@ -107,6 +101,7 @@ const CursoNivelView = () => {
   // Si lo que toca es el Test Final y está cerrado, "Continuar" lleva al primero sin estrellas.
   const continuarAPendiente = nodoActual?.rolEnNivel === 'TEST_FINAL' && pendientes.length > 0;
   const testFinal = progreso.find((p) => p.rolEnNivel === 'TEST_FINAL') ?? null;
+  const siguiente = nivelSiguiente(nivel);
 
   const refActual = useRef<HTMLDivElement>(null);
   const [yaSeDesplazo, setYaSeDesplazo] = useState(false);
@@ -238,6 +233,30 @@ const CursoNivelView = () => {
           </button>
         )}
       </header>
+
+      {/* La Prueba de nivel: el atajo para quien ya escribe al tacto. No es un paso del
+          sendero (vive en el orden 0), así que va aparte y solo mientras el nivel no esté
+          aprobado. La precisión va primero en el texto porque es lo que la prueba mide de
+          verdad (95%, decisión del usuario); los números los manda el backend. */}
+      {stats?.pruebaNivelId != null && !stats.aprobado && (
+        <div className="flex flex-wrap items-center gap-4 rounded-2xl border px-5 py-4 sm:flex-nowrap"
+          style={{ borderColor: 'rgba(255,197,61,0.35)', background: 'rgba(255,197,61,0.07)' }}>
+          <Icono nombre="bolt" tamano={26} relleno className="shrink-0" style={{ color: 'var(--color-oro)' }} />
+          <div className="min-w-0 flex-1">
+            <p className="font-bold text-white">¿Ya sabes escribir sin mirar?</p>
+            <p className="mt-0.5 text-sm text-gris-texto">
+              Haz la Prueba de nivel: con {stats.pruebaNivelPrecision}% de precisión
+              y {stats.pruebaNivelWpm} WPM apruebas el {NOMBRE_NIVEL[nivel]} de una vez
+              {siguiente && <> y se abre el {NOMBRE_NIVEL[siguiente]}</>}.
+            </p>
+          </div>
+          <button onClick={() => navigate(`/curso/${nivelParam}/${stats.pruebaNivelId}`)}
+            className="shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition-colors hover:bg-oro/10"
+            style={{ borderColor: 'rgba(255,197,61,0.5)', color: 'var(--color-oro)' }}>
+            Hacer la prueba
+          </button>
+        </div>
+      )}
 
       {verBloqueo && pendientes.length > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"

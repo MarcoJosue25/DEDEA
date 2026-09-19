@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { NivelCurso, ProgresoEjercicioResponse, ResultadoCursoResponse } from '../../types';
-import { colorPorMejorar, llegoAlTestFinal } from '../../core/curso/sendero';
+import { NOMBRE_NIVEL, colorPorMejorar, llegoAlTestFinal } from '../../core/curso/sendero';
 import Icono from '../ui/Icono';
 import Estrellas from './Estrellas';
 import Confeti from './Confeti';
@@ -18,12 +18,6 @@ interface Props {
   destacadoId?: number | null;
   onElegirNodo?: (nodo: ProgresoEjercicioResponse) => void;
 }
-
-const NOMBRE_NIVEL: Record<NivelCurso, string> = {
-  BASICO: 'Básico',
-  INTERMEDIO: 'Intermedio',
-  AVANZADO: 'Avanzado',
-};
 
 const ORDINALES_BLOQUE = ['primera', 'segunda', 'tercera', 'cuarta', 'quinta', 'sexta'];
 

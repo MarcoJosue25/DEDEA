@@ -1,5 +1,19 @@
 import type { NivelCurso, ProgresoEjercicioResponse } from '../../types';
 
+export const NOMBRE_NIVEL: Record<NivelCurso, string> = {
+  BASICO: 'Básico',
+  INTERMEDIO: 'Intermedio',
+  AVANZADO: 'Avanzado',
+};
+
+const ORDEN_NIVELES: NivelCurso[] = ['BASICO', 'INTERMEDIO', 'AVANZADO'];
+
+// El nivel que se abre al aprobar este; null después del último.
+export const nivelSiguiente = (nivel: NivelCurso): NivelCurso | null => {
+  const i = ORDEN_NIVELES.indexOf(nivel);
+  return i >= 0 ? ORDEN_NIVELES[i + 1] ?? null : null;
+};
+
 /* Lo que dice un nivel bloqueado, igual en el selector y en la pantalla de su sendero.
    Un texto por nivel porque "aprueba el nivel anterior" obliga a adivinar cuál es.
 
