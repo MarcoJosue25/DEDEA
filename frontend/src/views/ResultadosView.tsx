@@ -16,7 +16,7 @@ import DesgloseTandas from '../components/curso/DesgloseTandas';
 import ConfirmarRepeticion from '../components/curso/ConfirmarRepeticion';
 import { useApariencia } from '../core/apariencia/useApariencia';
 import { DESBLOQUEAR_TODO_EL_CURSO } from '../core/desarrollo';
-import { llegoAlTestFinal } from '../core/curso/sendero';
+import { NOMBRE_NIVEL, llegoAlTestFinal } from '../core/curso/sendero';
 
 interface ResultadoSesion {
   wpm: number;
@@ -278,27 +278,43 @@ const ResultadosView = () => {
     ? ejercicioId
     : destinoCompletar?.ejercicioId ?? null;
 
+  /* LA PRUEBA DE NIVEL no es un paso del sendero (orden 0), así que "el siguiente
+     ejercicio" no significa nada después de ella: desde el orden 0 el siguiente es siempre
+     el primer nodo, aunque ya vayas por el veinte. Aprobada, se va al nivel que acaba de
+     abrirse; no aprobada, a retomar el curso donde ibas (o a empezarlo). */
+  const esPruebaNivel = recompensa?.rolEnNivel === 'TEST_NIVEL';
+  const nivelAbierto = esPruebaNivel ? recompensa?.nivelDesbloqueado ?? null : null;
+  const retomarCurso = esPruebaNivel && !recompensa?.superado
+    ? nodos.find((n) => !n.completado) ?? null
+    : null;
+
   const irASiguienteOMenu = useCallback(() => {
-    if (destinoCompletar === 'repetir') {
+    if (nivelAbierto) {
+      navigate(`/curso/${nivelAbierto.toLowerCase()}`);
+    } else if (destinoCompletar === 'repetir') {
       navigate(`/curso/${nivelActual}/${ejercicioId}`);
     } else if (destinoCompletar) {
       navigate(`/curso/${nivelActual}/${destinoCompletar.ejercicioId}`);
+    } else if (retomarCurso) {
+      navigate(`/curso/${nivelActual}/${retomarCurso.ejercicioId}`);
     } else if (siguienteEnCurso) {
       navigate(`/curso/${nivelActual}/${siguienteEnCurso.id}`);
     } else {
       navigate(`/curso/${nivelActual}`);
     }
-  }, [destinoCompletar, siguienteEnCurso, nivelActual, ejercicioId, navigate]);
+  }, [nivelAbierto, destinoCompletar, retomarCurso, siguienteEnCurso, nivelActual, ejercicioId, navigate]);
 
   /* El rótulo del botón principal, que cambia con el modo. Una sola función para los dos
      paneles (ejercicio y juego): lo único que difiere es cómo se dice "el siguiente del
      sendero" fuera del modo. */
   const rotuloPrincipal = (siguienteNormal: string) => {
     if (cargandoSiguiente || cargandoNodos) return 'Cargando…';
+    if (nivelAbierto) return `Ir al ${NOMBRE_NIVEL[nivelAbierto]}`;
     if (destinoCompletar === 'repetir') return 'Repetir este ejercicio';
     if (destinoCompletar) {
       return destinoCompletar.rolEnNivel === 'TEST_FINAL' ? 'Ir al Test Final' : 'Ir al siguiente ejercicio';
     }
+    if (retomarCurso) return nodos.some((n) => n.completado) ? 'Continuar el curso' : 'Empezar el curso';
     return siguienteEnCurso ? siguienteNormal : 'Volver al menú';
   };
 
