@@ -1124,9 +1124,10 @@ const CursoPracticaView = () => {
     tiempoNodoMsRef.current += transcurridoMsRef.current;
 
     const actual = tandaActualRef.current;
-    /* Snapshot ANTES de que `reiniciarProgreso()` (más abajo, y también en el cierre del
-       ejercicio si esta era la última) borre `progresoRef`: es la única oportunidad de
-       conservar el detalle de ESTA tanda. Ver la nota junto a `progresoPorTandaRef`. */
+    /* Snapshot ANTES de que `reiniciarProgreso()` (en `avanzarASiguienteTanda`, y también
+       en el cierre del ejercicio si esta era la última) borre `progresoRef`: es la única
+       oportunidad de conservar el detalle de ESTA tanda. Ver la nota junto a
+       `progresoPorTandaRef`. */
     progresoPorTandaRef.current = [
       ...progresoPorTandaRef.current,
       ...progresoRef.current.map((p) => ({ ...p, tanda: actual })),
@@ -1154,7 +1155,7 @@ const CursoPracticaView = () => {
     }
 
     return true;
-  }, [reiniciarProgreso, esperarEnterEntreTandas, avanzarASiguienteTanda]);
+  }, [esperarEnterEntreTandas, avanzarASiguienteTanda]);
 
   // El destello dura lo que su animación: si se cambiara uno hay que cambiar el otro.
   /* Se acabó un latido. Decide si viene otro, si el nodo está aprobado, o si toca el
