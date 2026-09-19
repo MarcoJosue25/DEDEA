@@ -11,7 +11,6 @@ import {
 import Spinner from '../components/ui/Spinner';
 import Cronometro from '../components/practica/Cronometro';
 import AroProgreso from '../components/practica/AroProgreso';
-import SelectorApariencia from '../components/ui/SelectorApariencia';
 import { useApariencia } from '../core/apariencia/useApariencia';
 import VistaPalabrasMutantes from '../components/practica/VistaPalabrasMutantes';
 import VistaCarruselPalabras from '../components/practica/VistaCarruselPalabras';
@@ -2522,7 +2521,6 @@ const CursoPracticaView = () => {
           }`}>
           <span className="material-symbols-outlined text-[18px]">view_carousel</span>
         </button>
-        <SelectorApariencia />
       </div>
 
       {subSelector}

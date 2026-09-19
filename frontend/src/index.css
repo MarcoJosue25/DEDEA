@@ -143,29 +143,12 @@ body::after {
 }
 
 /* ============================================================
-   APARIENCIAS de Práctica y Resultados.
+   APARIENCIA de Práctica y Resultados.
    El degradado del fondo no cambia: lo que cambia es el juego de
-   superficies que va encima. Las vistas usan SIEMPRE estas
-   variables, así que agregar una apariencia nueva es sumar un
-   bloque acá y una entrada en core/apariencia/apariencia.ts,
-   sin tocar el JSX.
+   superficies que va encima. V1 sale solo con la oscura (ver
+   core/apariencia/apariencia.ts); el bloque de la clara se borró
+   el 19-sep-2026. Un tema de color nuevo es otro bloque como este.
    ============================================================ */
-[data-apariencia='claro'] {
-  --sup: #FFFFFF;
-  /* slate-200: el mismo borde que ya tenían las tarjetas claras. Antes esto era
-     `transparent`, y por eso una vista escrita con variables perdía el contorno. */
-  --sup-borde: #E2E8F0;
-  --sup-sombra: 0 4px 12px rgba(15, 23, 42, 0.03);
-  --sup-texto: #0F172A;
-  --sup-tenue: #64748B;
-  --texto-pendiente: #CBD5E1;
-  --texto-activo: #0F172A;
-  --tecla-fondo: #FFFFFF;
-  --tecla-borde: #E2E8F0;
-  --tecla-texto: #334155;
-  --panel-texto: #0F172A;
-}
-
 [data-apariencia='oscuro'] {
   /* 2% de cian: apenas separa la tarjeta del degradado sin cortarlo. */
   --sup: rgba(0, 241, 253, 0.02);

@@ -10,7 +10,6 @@ import { contarAparicionesNgram } from '../utils/ngramExtractor';
 import { calcularDelta } from '../utils/ritmoTecleo';
 import Spinner from '../components/ui/Spinner';
 import Cronometro from '../components/practica/Cronometro';
-import SelectorApariencia from '../components/ui/SelectorApariencia';
 import { useApariencia } from '../core/apariencia/useApariencia';
 
 /* Interruptor del diseño oscuro: pastilla con la perilla que se desliza.
@@ -1104,10 +1103,6 @@ if (!noticia) return <Spinner texto="Cargando texto..." />;
             </div>
           </div>
 
-          {/* Único añadido a esta apariencia: el acceso a la paleta. */}
-          <div className="absolute -right-16 top-4 hidden lg:block">
-            <SelectorApariencia />
-          </div>
         </div>
 
         {/* El panel de objetivos va AL COSTADO y no debajo, para poder mirarlo sin
@@ -1286,8 +1281,6 @@ if (!noticia) return <Spinner texto="Cargando texto..." />;
             </p>
           </div>
         </div>
-
-        <SelectorApariencia />
       </div>
 
       <div className="flex flex-wrap items-center gap-6">
@@ -1297,13 +1290,16 @@ if (!noticia) return <Spinner texto="Cargando texto..." />;
         <NivelNoticia dificultad={noticia.dificultad} />
       </div>
 
-      {/* Ver la nota de la apariencia clara: el panel va al costado derecho y solo
-          existe en el modo IA. */}
-      <div className={objetivosIa.length > 0 ? 'grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_220px]' : ''}>
+      {/* El texto ocupa todo el ancho, con letra de 24 px (era 20). El panel de objetivos
+          del modo IA flota en el MARGEN derecho de la página cuando cabe —desde 1536 px: el
+          contenido mide 1024 y el panel pide 244 con su separación— y cae debajo del texto
+          en pantallas más chicas. Antes compartían una rejilla y el panel le quitaba 220 px
+          al texto. Pedido del usuario, 19-sep-2026. */}
+      <div className="relative">
       <div className="rounded-2xl border border-(--sup-borde) bg-(--sup) p-8">
         <p className="mb-6 text-xs font-bold uppercase tracking-widest text-(--sup-tenue)">{noticia.titulo}</p>
 
-        <div className="min-h-[120px] select-none font-mono text-xl leading-relaxed tracking-wide">
+        <div className="min-h-[120px] select-none font-mono text-2xl leading-relaxed tracking-wide">
           {texto.split('').map((char, i) => (
             <span key={i} className={`${getColorCaracter(i)} transition-colors`}>{char}</span>
           ))}
@@ -1316,8 +1312,12 @@ if (!noticia) return <Spinner texto="Cargando texto..." />;
         )}
       </div>
 
-      <PanelObjetivosIa objetivos={objetivosIa} texto={texto} dificultad={noticia.dificultad} />
-      </div>{/* fin de la rejilla texto + panel */}
+      {objetivosIa.length > 0 && (
+        <div className="mt-6 max-w-xs 2xl:absolute 2xl:left-full 2xl:top-0 2xl:ml-6 2xl:mt-0 2xl:w-[220px]">
+          <PanelObjetivosIa objetivos={objetivosIa} texto={texto} dificultad={noticia.dificultad} />
+        </div>
+      )}
+      </div>{/* fin del bloque texto + panel */}
 
       {mostrarTeclado && (
         <div className="rounded-2xl border border-(--sup-borde) bg-(--sup) p-6">{teclado}</div>

@@ -4,7 +4,6 @@ import {
   AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import Spinner from '../components/ui/Spinner';
-import SelectorApariencia from '../components/ui/SelectorApariencia';
 import { useApariencia } from '../core/apariencia/useApariencia';
 import {
   obtenerResumenGlobal, obtenerDebilidades, obtenerProgresoNgrams,
@@ -372,7 +371,6 @@ const GlobalStatsView = () => {
             </h1>
             <p className="mt-1 text-gris-texto">Tu historial de rendimiento y áreas de mejora.</p>
           </div>
-          <SelectorApariencia />
         </header>
 
         {/* Métricas principales. La nota bajo velocidad y precisión aclara de dónde salen:
@@ -664,9 +662,6 @@ const GlobalStatsView = () => {
       <header className="relative mb-4">
         <h1 className="text-4xl font-bold text-slate-800 mb-2">Mis Estadísticas</h1>
         <p className="text-slate-400 text-lg">Tu historial de rendimiento y áreas de mejora.</p>
-        <div className="absolute right-0 top-0">
-          <SelectorApariencia />
-        </div>
       </header>
 
       {/* Stats globales */}

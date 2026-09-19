@@ -10,7 +10,6 @@ import type {
 import { obtenerDebilidades } from '../api/statsApi';
 import { listarEjercicios, obtenerSiguienteEnCurso } from '../api/ejercicioApi';
 import { obtenerProgresoCursoPorNivel } from '../api/cursoStatsApi';
-import SelectorApariencia from '../components/ui/SelectorApariencia';
 import RecompensaCurso from '../components/curso/RecompensaCurso';
 import DesgloseTandas from '../components/curso/DesgloseTandas';
 import ConfirmarRepeticion from '../components/curso/ConfirmarRepeticion';
@@ -689,7 +688,6 @@ const ResultadosView = () => {
               </span>
             )}
           </div>
-          <SelectorApariencia />
         </div>
 
         {/* La recompensa va ARRIBA de las cifras y no debajo: es la respuesta a "¿pasé?",
@@ -917,9 +915,6 @@ const ResultadosView = () => {
             {resultado.dificultad}
           </span>
         )}
-        <div className="absolute right-0 top-8 hidden lg:block">
-          <SelectorApariencia />
-        </div>
       </div>
 
       {recompensa && (

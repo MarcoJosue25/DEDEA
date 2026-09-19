@@ -1,51 +1,15 @@
 /* Apariencia de las pantallas de práctica y resultados.
 
-   El degradado del fondo es siempre el mismo; lo que cambia acá es el juego de
-   superficies que va encima (tarjetas, teclado, colores de texto). Se implementa
-   con variables CSS declaradas en index.css bajo [data-apariencia="..."], así que
-   agregar una apariencia nueva es sumar una entrada a esta lista y su bloque de
-   variables — sin tocar las vistas. */
+   V1 SALE SOLO CON LA OSCURA (decisión del usuario, 19-sep-2026). Hasta entonces había
+   dos —tarjetas claras y oscuras— con un selector de paleta en cada ejercicio, y la clara
+   era la que veía cualquier usuario nuevo. El selector se borró y la apariencia quedó
+   fija acá; la luna del menú avisa que vienen más temas de color.
+
+   Las vistas conservan sus ramas `esOscuro ? … : …`: son ~500 referencias en 36 archivos,
+   y borrarlas no cambia nada de lo que se ve. Quedan inalcanzables, y el día que lleguen
+   los temas nuevos se reemplazan por variables CSS (index.css, [data-apariencia]) en vez
+   de condicionales en el JSX. */
 
 export type Apariencia = 'claro' | 'oscuro';
 
-export interface OpcionApariencia {
-  id: Apariencia;
-  nombre: string;
-  descripcion: string;
-  /* Colores de la miniatura del selector: [superficie, acento].
-     Son solo para la vista previa del panel, no para pintar la pantalla. */
-  muestra: [string, string];
-}
-
-export const APARIENCIAS: OpcionApariencia[] = [
-  {
-    id: 'claro',
-    nombre: 'Tarjetas claras',
-    descripcion: 'Superficies blancas sobre el degradado.',
-    muestra: ['#FFFFFF', '#0F172A'],
-  },
-  {
-    id: 'oscuro',
-    nombre: 'Tarjetas oscuras',
-    descripcion: 'Superficies translúcidas y acentos cian.',
-    muestra: ['#0A141C', '#00F1FD'],
-  },
-];
-
-const CLAVE = 'dedea_apariencia';
-const POR_DEFECTO: Apariencia = 'claro';
-
-export const leerApariencia = (): Apariencia => {
-  try {
-    const valor = localStorage.getItem(CLAVE);
-    return valor === 'claro' || valor === 'oscuro' ? valor : POR_DEFECTO;
-  } catch {
-    return POR_DEFECTO; // modo privado o storage bloqueado
-  }
-};
-
-export const guardarApariencia = (valor: Apariencia) => {
-  try {
-    localStorage.setItem(CLAVE, valor);
-  } catch { /* sin storage: la elección dura solo esta sesión */ }
-};
+export const APARIENCIA_V1: Apariencia = 'oscuro';

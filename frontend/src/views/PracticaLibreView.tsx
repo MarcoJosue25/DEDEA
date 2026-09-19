@@ -6,7 +6,6 @@ import { obtenerDebilidades } from '../api/statsApi';
 import { generarTextoDePalabras } from '../api/diccionarioApi';
 import Spinner from '../components/ui/Spinner';
 import Cronometro from '../components/practica/Cronometro';
-import SelectorApariencia from '../components/ui/SelectorApariencia';
 import { useApariencia } from '../core/apariencia/useApariencia';
 import { calcularDelta } from '../utils/ritmoTecleo';
 
@@ -632,8 +631,6 @@ const PracticaLibreView = () => {
             </div>
           </div>
         )}
-
-        <SelectorApariencia />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6 items-start">

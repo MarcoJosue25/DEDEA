@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { generarTextoIA } from '../api/iaApi';
 import RellenoPalabras from '../components/practica/RellenoPalabras';
-import SelectorApariencia from '../components/ui/SelectorApariencia';
 import { useApariencia } from '../core/apariencia/useApariencia';
 import type { TextoIaResponse } from '../types';
 
@@ -232,7 +231,6 @@ const SelectorIaView = () => {
             Gemini generará un texto diseñado para ellas.
           </p>
         </div>
-        <SelectorApariencia />
       </header>
 
       {!hayDatos && (

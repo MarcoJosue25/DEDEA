@@ -1,25 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
-import { leerApariencia, guardarApariencia, type Apariencia } from './apariencia';
+import { APARIENCIA_V1, type Apariencia } from './apariencia';
 
-/* Evento propio para que dos componentes montados a la vez (por ejemplo el selector
-   del header y la vista de práctica) se enteren del cambio. El evento 'storage' del
-   navegador NO sirve acá: solo se dispara en OTRAS pestañas, nunca en la que escribe. */
-const EVENTO = 'dedea:apariencia';
-
-export const useApariencia = () => {
-  const [apariencia, setEstado] = useState<Apariencia>(leerApariencia);
-
-  const cambiar = useCallback((valor: Apariencia) => {
-    guardarApariencia(valor);
-    setEstado(valor);
-    window.dispatchEvent(new CustomEvent<Apariencia>(EVENTO, { detail: valor }));
-  }, []);
-
-  useEffect(() => {
-    const alCambiar = (e: Event) => setEstado((e as CustomEvent<Apariencia>).detail);
-    window.addEventListener(EVENTO, alCambiar);
-    return () => window.removeEventListener(EVENTO, alCambiar);
-  }, []);
-
-  return { apariencia, cambiar };
-};
+/* Devuelve la apariencia vigente. En V1 es siempre la oscura (ver apariencia.ts); se
+   conserva como hook para que las 36 vistas que la leen no cambien, y para que el día
+   que vuelva a poder elegirse solo haya que tocar este archivo. Lo que un usuario haya
+   guardado antes en `dedea_apariencia` se ignora. */
+export const useApariencia = (): { apariencia: Apariencia } => ({ apariencia: APARIENCIA_V1 });
