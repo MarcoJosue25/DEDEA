@@ -592,7 +592,11 @@ const CursoPracticaView = () => {
        entienda los latidos siga recibiendo un ejercicio válido. */
     /* Se parte ANTES de pintar nada. Si el salto de línea llegara al texto, sería una
        pulsación de Enter —que cuenta como error, está pegada a la Ñ— en medio de la frase. */
-    const tandas = (data.texto ?? '').includes(SALTO_DE_TANDA)
+    /* ⚠️ La LLUVIA queda fuera: desde el 19-sep-2026 su texto también puede traer saltos de
+       línea, pero ahí no son tandas sino TRAMOS que la propia vista reparte en el tiempo
+       (ver VistaLluviaLetras). Partiéndolos acá, el nodo serviría un tercio del contenido y
+       encima con el destello de "¡Muy bien!" apareciendo en medio de un juego. */
+    const tandas = data.tipo !== 'LLUVIA_LETRAS' && (data.texto ?? '').includes(SALTO_DE_TANDA)
       ? data.texto.split(SALTO_DE_TANDA).map((t) => t.trim()).filter(Boolean)
       : [];
     tandasRef.current = tandas;

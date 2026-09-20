@@ -9,6 +9,7 @@ import com.dedea.app.dto.IntentoResumen;
 import com.dedea.app.dto.SesionCursoRequest;
 import com.dedea.app.dto.SesionResponse;
 import com.dedea.app.dto.TeclaEventoDTO;
+import com.dedea.app.dto.TeclaStatProyeccion;
 import com.dedea.app.exception.ApiException;
 import com.dedea.app.exception.ResourceNotFoundException;
 import com.dedea.app.mapper.EntityMapper;
@@ -49,6 +50,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.HashSet;
@@ -459,32 +461,45 @@ public class EjercicioServiceImpl implements EjercicioService {
            en la fila central de reposo (sin ancla) el resto sí sale de todo lo acumulado,
            porque ahí cualquier tecla vieja es igual de segura. Ver la nota grande de
            `ancla`/`secundarias` en PASOS_FUNDAMENTOS.
-         - FORMA: sílabas cortas al principio, y PALABRAS REALES en el último cuando el
-           diccionario da para armarlas
+         - LARGO DEL TOKEN: sílabas de una o dos letras al principio, de tres a cinco al final
 
-       Lo de las palabras reales importa más de lo que parece. Medido contra el
-       diccionario: hasta el nodo 4 no existe ninguna palabra española (f j d k s l no
-       tienen vocal), en el nodo 5 aparecen 15 y en el 10 ya hay 265. Así que desde "a ñ"
-       en adelante cada nodo puede cerrar con "sala salsa falsa" en vez de con una sílaba
-       inventada — que es la única prueba que el usuario recibe de estar aprendiendo algo
-       que sirve. */
+       ⚠️ EL ÚLTIMO LATIDO YA NO SIRVE PALABRAS REALES (19-sep-2026). Hasta hoy buscaba en
+       el diccionario palabras formables con lo acumulado, y ese generador se saltaba los
+       dos ejes de arriba: servía lo que el diccionario diera, sin respetar el 80/20 del
+       plan. En "a ñ" el pool son tres palabras y el resultado era `falsas ala sal` repetido
+       CINCO veces en el mismo orden; en "w o" salían quince palabras sin una sola `w`, o
+       sea un latido de la tecla nueva donde la tecla nueva no aparecía. **Decisión del
+       usuario, que nunca autorizó ese generador: los cuatro latidos son tandas de sílabas
+       con su dominancia, y el último es 80% nuevas y 20% del pool viejo como cualquier
+       otro.** Con esto el nodo entero cumple una sola regla en vez de dos. */
     private record PlanLatido(String nombre, String descripcion, int caracteres,
                               int dominancia, int largoMin, int largoMax) {}
 
     private static final List<PlanLatido> PLAN_LATIDOS = List.of(
-            new PlanLatido("Aprende", "Solo las teclas nuevas", 40, 95, 1, 2),
-            new PlanLatido("Combina", "Con las que ya practicaste", 60, 90, 2, 3),
-            new PlanLatido("Mezcla", "Más teclas en juego", 80, 85, 2, 4),
-            new PlanLatido("Prueba", "Todo junto", 80, 80, 3, 5));
+            new PlanLatido("Aprende", "Casi solo las teclas nuevas", 40, 95, 1, 2),
+            new PlanLatido("Combina", "Entran las de antes, de a poco", 60, 90, 2, 3),
+            new PlanLatido("Mezcla", "Cada vez más mezcladas", 80, 85, 2, 4),
+            new PlanLatido("Prueba", "Una de cada cinco es de las anteriores", 80, 80, 3, 5));
+
+    /* Las descripciones de arriba solo valen cuando el nodo TIENE teclas anteriores con las
+       que mezclar. Los dos casos que no:
+
+       · "f j", el primer nodo del curso: no hay ninguna tecla anterior, así que sus tres
+         latidos son 100% `f` y `j` y lo único que cambia es el largo. Leer "Entran las de
+         antes" en el segundo latido del primer ejercicio es desconcertante — no hay "antes".
+       · "z x", el único con dominanciaPropia: su "viejo" no son las acumuladas sino el punto
+         y el guion, en los cuatro latidos. ⚠️ Estos textos nombran esas dos teclas porque hoy
+         es el único nodo así; si algún día otro usa `dominanciaPropia` con otras secundarias,
+         hay que generalizarlos. */
+    private static final List<String> DESCRIPCIONES_SIN_ANTERIORES = List.of(
+            "Solo las teclas nuevas", "En grupos más largos", "Grupos largos y más texto");
+
+    private static final List<String> DESCRIPCIONES_CON_SECUNDARIAS = List.of(
+            "Casi solo las teclas nuevas", "Entran el punto y el guion",
+            "Más punto y guion", "Lo mismo, con más texto");
 
     // Teclas del tutorial: se alternan las nuevas hasta llegar a diez.
     private static final int TECLAS_TUTORIAL = 10;
-
-    /* Con menos palabras disponibles que esto, el último latido usa solo TRES distintas y
-       las repite. Es deliberado: en "a ñ" el diccionario da 15 palabras y servirlas todas
-       convierte el cierre en una lista inconexa; con tres repetidas es un drill. */
-    private static final int POOL_PALABRAS_ESCASO = 20;
-    private static final int PALABRAS_DISTINTAS_ESCASAS = 3;
 
     /* Cuántos latidos tiene un nodo. "f j" es el primero de todos: no hay ninguna tecla
        anterior con la que combinar, así que su cuarto latido sería idéntico al tercero y
@@ -507,10 +522,9 @@ public class EjercicioServiceImpl implements EjercicioService {
         int domSecundarias = config.get("dominanciaSecundarias") instanceof Number n
                 ? n.intValue() : 0;
         /* "z x" es el ÚNICO nodo con progresión propia (11-sep-2026), 80/75/70/70 en vez
-           de la global 95/90/85/80: sin vocales, no forma palabras reales y no tiene
-           sentido mezclarlo con nada fuera de ". -" — ni siquiera en el último latido,
-           que para el resto del curso busca palabras del diccionario. Ver la nota grande
-           de `ancla`/`secundarias` junto a PASOS_FUNDAMENTOS. */
+           de la global 95/90/85/80, y su "viejo" son el punto y el guion en vez de las
+           acumuladas: sin vocales, no tiene sentido mezclarlo con nada fuera de ". -".
+           Ver la nota grande de `ancla`/`secundarias` junto a PASOS_FUNDAMENTOS. */
         String dominanciaPropiaStr = (String) config.getOrDefault("dominanciaPropia", "");
         List<Integer> dominanciaPropia = dominanciaPropiaStr.isEmpty() ? List.of()
                 : Arrays.stream(dominanciaPropiaStr.split(",")).map(Integer::parseInt).toList();
@@ -523,12 +537,6 @@ public class EjercicioServiceImpl implements EjercicioService {
                 plan = new PlanLatido(plan.nombre(), plan.descripcion(), plan.caracteres(),
                         dominanciaPropia.get(i), plan.largoMin(), plan.largoMax());
             }
-            boolean esUltimo = i == cuantos - 1;
-            /* El último latido SIEMPRE intenta palabras reales —salvo `z x`, ver abajo—,
-               tenga o no teclas acumuladas: "asdf jklñ" no introduce ninguna letra nueva
-               —así que su `acumuladas` queda vacío— y sin embargo con la fila central
-               completa el diccionario ya da quince palabras. generarCierreDelNodo cae
-               solo a sílabas cuando no hay ninguna. */
             /* ⚠️ REESCRITO el 11-sep-2026. Hasta hoy el PRIMER latido de los nodos con
                `ancla` tenía un generador propio (`generarTandaConAncla`, ya borrado):
                emparejaba cada tecla nueva con su reposo EN EL MISMO TOKEN —`fv fvf jm
@@ -542,15 +550,14 @@ public class EjercicioServiceImpl implements EjercicioService {
                de `ancla` cuando el nodo la tiene, nunca de todo `acumuladas` (ver la nota
                grande junto a PASOS_FUNDAMENTOS)— y solo cambia el `dominancia` del plan
                (95 → 90 → 85). Los nodos de fila central sin ancla (d k, s l, a ñ) siguen
-               mezclando con todo lo acumulado en los tres, que ahí siempre fue correcto. */
+               mezclando con todo lo acumulado en los tres, que ahí siempre fue correcto.
+
+               Y desde el 19-sep-2026 el CUARTO pasa por el mismo camino: el generador de
+               palabras reales se borró (ver la nota de PLAN_LATIDOS). */
             String texto;
             if (!dominanciaPropia.isEmpty()) {
-                // z x: el "viejo" es SOLO la secundaria (. -), nunca `acumuladas` -- y
-                // corre igual en los cuatro latidos, sin la excepción de palabras reales
-                // que tiene el resto del curso en el último.
+                // z x: el "viejo" es SOLO la secundaria (. -), nunca `acumuladas`.
                 texto = generarTandaConDominancia(nuevas, secundarias, plan);
-            } else if (esUltimo) {
-                texto = generarCierreDelNodo(nuevas, acumuladas, plan);
             } else {
                 String poolViejo = ancla.isEmpty() ? acumuladas : ancla;
                 texto = generarTandaConDominancia(nuevas, poolViejo, secundarias,
@@ -559,12 +566,22 @@ public class EjercicioServiceImpl implements EjercicioService {
 
             latidos.add(LatidoResponse.builder()
                     .nombre(plan.nombre())
-                    .descripcion(plan.descripcion())
+                    .descripcion(descripcionDeLatido(plan, i, acumuladas, !dominanciaPropia.isEmpty()))
                     .texto(texto)
                     .dominancia(acumuladas.isEmpty() ? 100 : plan.dominancia())
                     .build());
         }
         return latidos;
+    }
+
+    /* Lo que el usuario lee al lado del nombre de la tanda, mientras la teclea. Tiene que
+       decir lo que de verdad cambia en ELLA, no lo que cambia en el nodo típico: ver las
+       dos listas de excepciones junto a PLAN_LATIDOS. */
+    private String descripcionDeLatido(PlanLatido plan, int indice, String acumuladas,
+                                       boolean conSecundarias) {
+        if (conSecundarias) return DESCRIPCIONES_CON_SECUNDARIAS.get(indice);
+        if (acumuladas.isEmpty()) return DESCRIPCIONES_SIN_ANTERIORES.get(indice);
+        return plan.descripcion();
     }
 
     /* El QUINTO latido: el último intento después de fallar los cuatro. Se juzga solo por
@@ -626,45 +643,6 @@ public class EjercicioServiceImpl implements EjercicioService {
             escritos += largo + 1; // +1 por el espacio que lo separa del siguiente
         }
         return String.join(" ", tokens);
-    }
-
-    /* El cierre del nodo: palabras REALES si el diccionario alcanza, y si no, sílabas.
-       Nunca inventa: si con las teclas disponibles no hay palabras españolas, cae al
-       generador de sílabas en vez de servir algo que parezca una palabra y no lo sea. */
-    private String generarCierreDelNodo(String nuevas, String acumuladas, PlanLatido plan) {
-        String disponibles = nuevas + acumuladas;
-        List<String> pool;
-        try {
-            pool = diccionarioRepository
-                    .findPorPatronDeLetras("^[" + disponibles + "]{3,}$", 200)
-                    .stream()
-                    .filter(p -> !ContenidoCurado.PALABRAS_NO_ESPANOLAS.contains(p.toLowerCase()))
-                    .collect(Collectors.toCollection(ArrayList::new));
-        } catch (Exception e) {
-            log.warn("[CURSO] No se pudo consultar el diccionario para el cierre del nodo: {}", e.getMessage());
-            pool = new ArrayList<>();
-        }
-
-        if (pool.isEmpty()) return generarTandaConDominancia(nuevas, acumuladas, plan);
-
-        Collections.shuffle(pool, ThreadLocalRandom.current());
-        // Con pocas palabras se eligen TRES y se repiten: ver POOL_PALABRAS_ESCASO.
-        List<String> elegidas = pool.size() < POOL_PALABRAS_ESCASO
-                ? new ArrayList<>(pool.subList(0, Math.min(PALABRAS_DISTINTAS_ESCASAS, pool.size())))
-                : pool;
-
-        List<String> salida = new ArrayList<>();
-        int escritos = 0;
-        int i = 0;
-        while (escritos < plan.caracteres()) {
-            String palabra = elegidas.get(i % elegidas.size());
-            salida.add(palabra);
-            escritos += palabra.length() + 1;
-            i++;
-            // Cortafuegos: si las palabras fueran de un solo carácter no terminaría nunca.
-            if (i > 200) break;
-        }
-        return String.join(" ", salida);
     }
 
     // Las diez teclas del tutorial, alternando las nuevas: para "d k" → d k d k d k d k d k.
@@ -1231,7 +1209,6 @@ public class EjercicioServiceImpl implements EjercicioService {
             case "basico_tildes" -> ContenidoCurado.ORACIONES_BASICO_TILDES;
             case "basico_dos_filas" -> ContenidoCurado.ORACIONES_BASICO_DOS_FILAS;
             case "basico_tres_filas" -> ContenidoCurado.ORACIONES_BASICO_TRES_FILAS;
-            case "basico_linea_base" -> ContenidoCurado.ORACIONES_BASICO_LINEA_BASE;
             case "basico_teclas_nuevas" -> ContenidoCurado.ORACIONES_BASICO_TECLAS_NUEVAS;
             case "test_final_basico" -> ContenidoCurado.TEXTO_TEST_FINAL_BASICO;
             case "test_final_intermedio" -> ContenidoCurado.TEXTO_TEST_FINAL_INTERMEDIO;
@@ -1518,6 +1495,13 @@ public class EjercicioServiceImpl implements EjercicioService {
             String identificadorTemporal) {
         String modo = (String) config.getOrDefault("modo", "letras");
 
+        /* `porFilas`: la lluvia se parte en TRAMOS, uno por fila del teclado. Ver
+           lluviaPorFilas. Sale antes que todo lo demás porque no usa ni `letras` ni `foco`:
+           cada tramo trae los suyos. */
+        if (Boolean.TRUE.equals(config.get("porFilas"))) {
+            return lluviaPorFilas(nivel, identificadorTemporal);
+        }
+
         /* Con `desdeFalladas` la lluvia deja de ser generica y llueve TUS peores teclas.
            Es el mismo dato que alimentaba REPASO_FALLADAS —la consulta se comparte en
            letrasFalladasDe— servido como juego en vez de como drill: abre el bloque de
@@ -1571,6 +1555,91 @@ public class EjercicioServiceImpl implements EjercicioService {
         }
 
         return String.join(" ", tokens);
+    }
+
+    /* LA LLUVIA DE REPASO, PARTIDA EN TRES TRAMOS (19-sep-2026, rediseño pedido por el
+       usuario). Diez segundos por fila del teclado —central, superior, inferior— y en cada
+       tramo caen solo CUATRO teclas: las que peor te salen de esa fila.
+
+       Antes era una sola lluvia de tus cinco peores teclas mezcladas, y el usuario lo cortó
+       con el argumento correcto: *"es demasiado para un principiante si no le decimos qué
+       teclas debe tocar"*. Cinco letras sueltas de tres filas distintas, sin avisar de
+       dónde salen, no es un repaso: es un examen sorpresa con las teclas que peor domina.
+       Con los tramos anunciados, el alumno sabe dónde poner las manos antes de que caiga
+       la primera letra, y las cuatro de cada fila entran en un solo vistazo.
+
+       El tramo lo delimita el `\n`, igual que las tandas del resto del curso: el front parte
+       por ahí, reparte la duración entre los tramos y anuncia cada uno con sus teclas. La
+       FILA de cada tramo no viaja: el front la deduce de las letras contra su propio mapa
+       del teclado, que es el mismo dibujo que ya usa para el resto del Curso.
+
+       ⚠️ LA FILA INFERIOR VA SOLO CON LETRAS (`z x c v b n m`): la coma, el punto y el guion
+       viven ahí pero son signos, y el usuario los dejó fuera a propósito — este nodo cierra
+       el repaso de las LETRAS del nivel. */
+    private record FilaDeLluvia(String letras, String respaldo) {}
+
+    /* Las cuatro de respaldo por fila, para quien llega sin historial. Son las que el propio
+       curso trata como difíciles: los meñiques de la central, los dedos débiles de arriba, y
+       de abajo las que menos aparecen en español. En la práctica casi nunca se usan —a este
+       nodo se llega después de treinta y dos ejercicios— pero completan también el hueco de
+       quien tiene menos de cuatro teclas falladas en una fila. */
+    private static final List<FilaDeLluvia> FILAS_DE_LA_LLUVIA = List.of(
+            new FilaDeLluvia("asdfghjklñ", "añsl"),
+            new FilaDeLluvia("qwertyuiop", "qwpy"),
+            new FilaDeLluvia("zxcvbnm", "zxbv"));
+
+    private static final int TECLAS_POR_TRAMO_LLUVIA = 4;
+    private static final int TOKENS_POR_TRAMO_LLUVIA = 20;
+
+    private String lluviaPorFilas(NivelCurso nivel, String identificadorTemporal) {
+        List<String> ranking = rankingDeFalladas(nivel, identificadorTemporal);
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+
+        List<String> tramos = new ArrayList<>();
+        for (FilaDeLluvia fila : FILAS_DE_LA_LLUVIA) {
+            String teclas = String.join("", teclasDelTramo(fila, ranking));
+            List<String> tokens = new ArrayList<>();
+            for (int i = 0; i < TOKENS_POR_TRAMO_LLUVIA; i++) {
+                tokens.add(String.valueOf(teclas.charAt(random.nextInt(teclas.length()))));
+            }
+            tramos.add(String.join(" ", tokens));
+        }
+        // El mismo separador de tanda que usa partirEnTandas: el front corta por él.
+        return String.join("\n", tramos);
+    }
+
+    /* Las cuatro peores de una fila: primero las falladas que pertenecen a ella, en orden de
+       peor a mejor, y se completa con el respaldo lo que falte. */
+    private List<String> teclasDelTramo(FilaDeLluvia fila, List<String> ranking) {
+        List<String> elegidas = ranking.stream()
+                .filter(fila.letras()::contains)
+                .limit(TECLAS_POR_TRAMO_LLUVIA)
+                .collect(Collectors.toCollection(ArrayList::new));
+        for (char c : fila.respaldo().toCharArray()) {
+            if (elegidas.size() >= TECLAS_POR_TRAMO_LLUVIA) break;
+            String tecla = String.valueOf(c);
+            if (!elegidas.contains(tecla)) elegidas.add(tecla);
+        }
+        return elegidas;
+    }
+
+    /* Todas las teclas del nivel ordenadas de PEOR a mejor, sin el tope de cinco que aplica
+       la pantalla de estadísticas (`letrasFalladasDe` sí lo hereda, y por eso no sirve acá:
+       cinco teclas globales pueden dejar una fila entera sin ninguna). */
+    private List<String> rankingDeFalladas(NivelCurso nivel, String identificadorTemporal) {
+        if (identificadorTemporal == null || nivel == null) return List.of();
+        return sesionTeclaRepository.findTeclaStatsCursoPorNivel(identificadorTemporal, nivel.name(), 1)
+                .stream()
+                .filter(t -> t.tecla() != null && t.tecla().length() == 1)
+                .sorted(Comparator.comparingDouble(t -> -porcentajeDeError(t)))
+                .map(TeclaStatProyeccion::tecla)
+                .collect(Collectors.toList());
+    }
+
+    private double porcentajeDeError(TeclaStatProyeccion t) {
+        double intentos = t.totalIntentos() == null ? 0 : t.totalIntentos().doubleValue();
+        double errores = t.errores() == null ? 0 : t.errores().doubleValue();
+        return intentos > 0 ? errores / intentos : 0;
     }
 
     /* PALABRAS_DE_FILA: central/superior generan palabras REALES del diccionario que
@@ -1737,7 +1806,48 @@ public class EjercicioServiceImpl implements EjercicioService {
                     + "'. Importá más palabras desde la pantalla /revision-palabras y activalas.");
         }
 
-        return recortarTanda(pool, config);
+        return conMayusculaInicial(conCombinaciones(recortarTanda(pool, config), config), config);
+    }
+
+    /* Mete N combinaciones cortas de un banco entre las palabras sueltas de la tanda.
+
+       Solo lo usa "Contrarreloj: palabras de la fila central" (orden 9 de Básico), y nació
+       de un pedido concreto: una lista de palabras de la fila central no se parece a nada
+       que se escriba de verdad, pero seis frases seguidas ya eran otro ejercicio. Con unas
+       pocas combinaciones aparece algo que suena a lengua sin dejar de ser una tanda de
+       palabras.
+
+       Van REPARTIDAS y nunca dos pegadas: dos seguidas se leen como una frase larga, que es
+       justo lo que este nodo dejó de ser. Si el banco tiene menos ítems que los pedidos, se
+       sirven los que haya. */
+    private String conCombinaciones(String palabras, Map<String, Object> config) {
+        int cuantas = config.get("combinaciones") instanceof Number n ? n.intValue() : 0;
+        if (cuantas <= 0) return palabras;
+
+        List<String> banco = new ArrayList<>(ContenidoCurado.COMBINACIONES_BASICO_LINEA_BASE);
+        Collections.shuffle(banco, ThreadLocalRandom.current());
+        List<String> elegidas = banco.subList(0, Math.min(cuantas, banco.size()));
+
+        List<String> salida = new ArrayList<>(Arrays.asList(palabras.split(" ")));
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        /* De atrás hacia delante: insertar corre las posiciones que quedan a la derecha, y
+           recorriendo al revés los huecos ya elegidos no se mueven. */
+        int hueco = salida.size();
+        for (int i = elegidas.size() - 1; i >= 0; i--) {
+            int tramo = Math.max(1, salida.size() / (elegidas.size() + 1));
+            hueco = Math.max(0, Math.min(hueco - 1 - random.nextInt(tramo), salida.size()));
+            salida.add(hueco, elegidas.get(i));
+        }
+        return String.join(" ", salida);
+    }
+
+    /* La primera letra del texto en mayúscula, y ninguna otra. Con `mayusculaInicial` en la
+       configuración: hoy solo el orden 9 de Básico, donde el usuario pidió exactamente una
+       mayúscula — la ventana que enseña Shift se dispara en la primera y no vuelve a salir,
+       así que varias solo suman pulsaciones sin enseñar nada nuevo. */
+    private String conMayusculaInicial(String texto, Map<String, Object> config) {
+        if (!Boolean.TRUE.equals(config.get("mayusculaInicial")) || texto.isBlank()) return texto;
+        return Character.toUpperCase(texto.charAt(0)) + texto.substring(1);
     }
 
     // % de los caracteres de la palabra que pertenecen al set de letras de una fila.
@@ -2780,16 +2890,30 @@ public class EjercicioServiceImpl implements EjercicioService {
                         + "\"mensajeTutorial\":\"Es hora de teclear tus primeras palabras\"}",
                 NivelCurso.BASICO, 1, 8);
 
-        /* FRASES, no una lista de palabras. El nodo 8 que tiene justo encima ya sirve
-           palabras sueltas de esta misma fila: encadenar dos nodos de listas cambiando solo
-           el cronómetro no aportaba variedad. Con frases se practica además el espacio a
-           ritmo, y el contrarreloj mide igual —el bono cae en cada espacio—.
-           Salen forzadas porque la fila central no tiene más vocal que la `a`; ver la nota
-           larga de ORACIONES_BASICO_LINEA_BASE. */
+        /* PALABRAS con tres COMBINACIONES entre medias, y una sola mayúscula (19-sep-2026).
+
+           El nodo pasó por las dos formas extremas antes de esta. Era una lista pelada —lo
+           mismo que el nodo 8 de arriba, con un reloj encima— y en septiembre pasó a seis
+           frases enteras, que trajeron dos problemas que el usuario vio en pantalla: se
+           servían PEGADAS y sin puntuación (`...dadas a la hada La alhaja falsa halaga...`,
+           ilegible, el mismo fallo que en "Contrarreloj: dos filas" se arregló sirviendo un
+           texto único) y cada frase traía SU mayúscula, o sea cinco Shift de más en un nodo
+           donde la mayúscula se enseña una sola vez.
+
+           Hoy: veinte palabras del diccionario, tres combinaciones cortas repartidas entre
+           ellas para que aparezca algo que suene a lengua, y la mayúscula solo en la primera
+           palabra del texto. Lo pidió así el usuario. Las combinaciones salen de
+           COMBINACIONES_BASICO_LINEA_BASE; ver ahí por qué ninguna dice `la hada`.
+
+           Las veinte se recortan del pool ORDENADO POR FRECUENCIA, igual que el nodo 8, así
+           que se solapan con sus dieciocho — es inevitable: con esta fila el diccionario da
+           poco más de treinta palabras. Lo que distingue a los dos nodos es el reloj, las
+           combinaciones y que acá la lista es más larga. */
         crearEnCursoSiNoExiste("Contrarreloj: palabras de la fila central",
-                "Treinta segundos de frases. Cada palabra correcta suma tiempo; cada error lo resta.",
+                "Treinta segundos de palabras sueltas. Cada una correcta suma tiempo; cada error lo resta.",
                 TipoEjercicio.CONTRARRELOJ,
-                "{\"banco\":\"basico_linea_base\",\"cantidad\":6,"
+                "{\"fila\":\"central\",\"letras\":\"" + FILA_CENTRAL + "\",\"cantidad\":20,"
+                        + "\"combinaciones\":3,\"mayusculaInicial\":true,"
                         + "\"tiempoInicialSegundos\":30,\"bonusCorrectaSegundos\":1,\"penalizacionErrorSegundos\":2}",
                 NivelCurso.BASICO, 1, 9);
 
@@ -2889,8 +3013,9 @@ public class EjercicioServiceImpl implements EjercicioService {
 
         /* COBRAR LAS TECLAS NUEVAS, que es lo que este bloque no hacia hasta el final.
 
-           Los bloques 1 y 2 rematan cada tanda de teclas con palabras reales; el 3 encadenaba
-           siete nodos de letras sueltas antes de la primera palabra. Medido contra el
+           Los bloques 1 y 2 cobran sus teclas nuevas en un nodo de palabras al poco de
+           enseñarlas (orden 8 y 18); el 3 encadenaba siete nodos de letras sueltas antes
+           de la primera palabra. Medido contra el
            diccionario: con la fila central, la superior y `v m c` —o sea sin b, n, z ni x—
            salen 2.883 palabras, MAS DEL DOBLE de las 1.340 del nodo equivalente del bloque
            anterior. Y las mas frecuentes son el nucleo del idioma: `de que la el es lo por me
@@ -2910,7 +3035,7 @@ public class EjercicioServiceImpl implements EjercicioService {
            ese nombre se retiraria solo en cada arranque. Es la trampa del sembrado por
            titulo, que ya mordio cinco veces. */
         crearEnCursoSiNoExiste("Palabras con la ve, la eme y la ce",
-                "Con la eme y la ce entran de golpe las palabras mas usadas del idioma.",
+                "Con la eme y la ce entran de golpe las palabras más usadas del idioma.",
                 TipoEjercicio.PALABRAS_DE_FILA,
                 "{\"patron\":\"^[asdfghjklñqwertyuiopvmc]*[vmc][asdfghjklñqwertyuiopvmc]*$\","
                         + "\"porTandas\":true}",
@@ -2923,7 +3048,7 @@ public class EjercicioServiceImpl implements EjercicioService {
            nivel, y va justo antes del tramo mas mecanico. Ver ORACIONES_BASICO_RELAJO
            para que se puede y que no se puede escribir en este punto de la secuencia. */
         crearEnCursoSiNoExiste("Un respiro entre teclas",
-                "Un texto corto, sin prisa. Aqui no se aprende ninguna tecla nueva.",
+                "Un texto corto, sin prisa. Aquí no se aprende ninguna tecla nueva.",
                 TipoEjercicio.ORACIONES_TEMATICAS,
                 "{\"banco\":\"basico_relajo\",\"cantidad\":1}",
                 NivelCurso.BASICO, 3, 25);
@@ -2933,11 +3058,14 @@ public class EjercicioServiceImpl implements EjercicioService {
            diez lecciones "Travel" repartidas por su fila inferior; acá se hace con UN_DEDO,
            que ya existía y vivía entero en Intermedio, donde llega tarde.
 
-           Cada recorrido va justo DONDE ESE DEDO QUEDA COMPLETO, y esa es la razón de que
-           el meñique venga antes que el índice aunque parezca al revés:
-             - meñiques y anulares se completan con "zx .-" (orden 22)
-             - los índices no se completan hasta "b n" (orden 24), la última pareja
-           Ponerlos antes sería pedirle al usuario teclas que todavía no vio. */
+           ⚠️ EL ORDEN ES ÍNDICE Y MEDIO PRIMERO (27), ANULAR Y MEÑIQUE DESPUÉS (29), y esta
+           nota decía lo contrario hasta el 19-sep-2026 —citando además dos órdenes que ya no
+           existen—. Manda la regla del propio curso, fuerte antes que débil, la misma que
+           ordena `f j` → `d k` → `s l` → `a ñ`. Las teclas dan igual: los cuatro dedos están
+           completos desde `b n` (orden 26), que va antes de los dos recorridos. Entre medias
+           se mete "Palabras de la fila de abajo" (28), que no es relleno — cinco de las siete
+           consonantes de esa fila son de índice y medio, así que el recorrido del 27 es su
+           preparación directa. */
         crearEnCursoSiNoExiste("Recorrido de anular y meñique",
                 "Un solo dedo, sus tres filas. Los dedos débiles son los que peor bajan.",
                 TipoEjercicio.UN_DEDO,
@@ -3005,7 +3133,7 @@ public class EjercicioServiceImpl implements EjercicioService {
            nodos de teclas nuevas y dos recorridos desembocan en frases de verdad. Dejarlo en
            el bloque 4 hacia que el 3 cerrara con un drill. */
         crearEnCursoSiNoExiste("Oraciones con las tres filas",
-                "Frases completas, ya con todas las letras del abecedario.",
+                "Frases completas, ya con letras de las tres filas.",
                 TipoEjercicio.ORACIONES_SIMPLES, "{\"porTandas\":true}",
                 NivelCurso.BASICO, 3, 31);
 
@@ -3033,13 +3161,20 @@ public class EjercicioServiceImpl implements EjercicioService {
 
         /* Reemplaza a la vez a la "Lluvia de las tres filas" (que barria el alfabeto al
            azar) y a "Repetir letras mas falladas" (mismo dato, presentado como drill): una
-           lluvia sobre TUS peores teclas hace las dos cosas. Sin foco: acá el objetivo ES
-           el teclado entero. */
-        crearEnCursoSiNoExiste("Lluvia de repaso: tus teclas mas falladas",
-                "Empezamos recopilando todas las teclas del curso, centrada en las que mas te cuestan.",
+           lluvia sobre TUS peores teclas hace las dos cosas.
+
+           ⚠️ POR TRAMOS DESDE EL 19-sep-2026, y el cambio es de fondo. Hasta entonces caían
+           las cinco peores teclas del nivel mezcladas, de cualquier fila, sin avisar —y la
+           descripción prometía en cambio "todas las teclas del curso", que nunca fue cierto:
+           `desdeFalladas` reemplaza el alfabeto entero por esas cinco. El usuario lo cortó
+           en la auditoría del nivel: *"es demasiado para un principiante si no le decimos
+           qué teclas debe tocar"*. Ahora son tres tramos de diez segundos, uno por fila,
+           cada uno anunciado con sus cuatro teclas. Ver lluviaPorFilas. */
+        crearEnCursoSiNoExiste("Lluvia de repaso: tus teclas más falladas",
+                "Un juego para cerrar: cada diez segundos cambia de fila y caen las cuatro teclas que peor te salen.",
                 TipoEjercicio.LLUVIA_LETRAS,
-                "{\"modo\":\"letras\",\"desdeFalladas\":true,"
-                        + "\"dominancia\":100,\"duracionSegundos\":30" + RESERVAS_LLUVIA_BASICO + "}",
+                "{\"modo\":\"letras\",\"porFilas\":true,"
+                        + "\"duracionSegundos\":30" + RESERVAS_LLUVIA_BASICO + "}",
                 NivelCurso.BASICO, 4, 33, 0, java.math.BigDecimal.ZERO);
 
         /* El bloque 1 cierra con "Contrarreloj: palabras de la fila central" y el 2 con
@@ -3050,7 +3185,7 @@ public class EjercicioServiceImpl implements EjercicioService {
            `banco` (texto largo real): "son puras palabras, debe ser un texto largo", dijo
            el usuario. Ver ORACIONES_BASICO_TRES_FILAS. */
         crearEnCursoSiNoExiste("Contrarreloj: las tres filas",
-                "Treinta segundos con un texto largo y el alfabeto entero. Cada palabra suma tiempo, cada error lo resta.",
+                "Treinta segundos con un texto largo de las tres filas. Cada palabra suma tiempo, cada error lo resta.",
                 TipoEjercicio.CONTRARRELOJ,
                 "{\"banco\":\"basico_tres_filas\",\"cantidad\":1,"
                         + "\"tiempoInicialSegundos\":30,\"bonusCorrectaSegundos\":1,\"penalizacionErrorSegundos\":2}",
@@ -3135,11 +3270,16 @@ public class EjercicioServiceImpl implements EjercicioService {
             /* Renombrados. El sembrado busca por TITULO, asi que cambiar el nombre deja la
                fila vieja viva con su orden anterior y el sendero mostraria las dos. */
             "Recorrido del índice", "Palabras línea inferior",
-            /* Los dos los reemplaza "Lluvia de repaso: tus teclas mas falladas": la de las
+            /* Los dos los reemplaza "Lluvia de repaso: tus teclas más falladas": la de las
                tres filas barria el alfabeto al azar y esta llueve lo que el usuario falla,
                que es estrictamente mejor como repaso; y el drill de falladas usaba el mismo
                dato con otra mecanica. La logica no se pierde: vive en letrasFalladasDe. */
             "Lluvia de letras: las tres filas", "Repetir letras más falladas",
+            /* El mismo nodo de arriba, con su título viejo SIN LA TILDE de "más". Se corrigió
+               el 19-sep-2026 junto con el resto de la ortografía de las portadas del nivel, y
+               una tilde en el título basta para que el sembrado cree una fila nueva: sin esto
+               quedarían dos "Lluvia de repaso" seguidas en el sendero. Sexta vez. */
+            "Lluvia de repaso: tus teclas mas falladas",
             /* Renombrado a "Palabras de las dos filas". Se detecto en la auditoria: los dos
                quedaron ACTIVOS en el orden 18 y el sendero mostraba dos nodos seguidos casi
                identicos. Tercera vez que muerde la misma trampa del sembrado por titulo. */
@@ -3297,8 +3437,8 @@ public class EjercicioServiceImpl implements EjercicioService {
                  distintos (anular y meñique) y no tiene nada que ver con el alcance más
                  largo del índice que este nodo enseña.
 
-       `z x` es distinto a propósito, y no solo en su `ancla`. Sin ninguna vocal, no forma
-       palabras reales ni tiene sentido mezclarlo con nada fuera de sus propias `. -` — ni
+       `z x` es distinto a propósito, y no solo en su `ancla`. Sin ninguna vocal, no tiene
+       sentido mezclarlo con nada fuera de sus propias `. -` — ni
        con `d k s l a ñ` (su ancla original, `aslñ`, se borró) ni con el resto de
        `acumuladas`. El punto y el guion son del anular y el meñique DERECHOS: meterlos con
        el mismo peso que la z y la x daba un nodo de cuatro teclas y dos manos —el más
@@ -3307,10 +3447,11 @@ public class EjercicioServiceImpl implements EjercicioService {
        acá SON el único "viejo" que existe —no hay ningún ancla de reposo detrás que
        también repasar— así que además de `ancla=""` y `secundarias=".-"` lleva su PROPIA
        progresión en `dominanciaPropia` (`"80,75,70,70"`, no la global 95/90/85/80).
-       `generarLatidos` la usa como gatillo de dos cosas a la vez: cambia el `dominancia`
-       de cada latido Y hace que el ÚLTIMO TAMBIÉN use el generador de sílabas en vez de
-       buscar palabras reales — `z x . -` nunca forma ninguna, así que `generarCierreDelNodo`
-       habría ido a buscarlas en TODO `acumuladas`, sacando al nodo de su propio material. */
+       `generarLatidos` la usa como gatillo de dos cosas: cambia el `dominancia` de cada
+       latido y hace que el "viejo" salga de `secundarias` en vez de `acumuladas`, así que
+       el nodo nunca se sale de sus cuatro caracteres. (Hasta el 19-sep-2026 era además el
+       gatillo de una tercera: que el último latido no fuera a buscar palabras reales. Ese
+       generador ya no existe para ningún nodo — ver la nota de PLAN_LATIDOS.) */
     private record PasoFundamentos(String titulo, String descripcion, String fila,
                                    String paso, String ancla, String secundarias,
                                    int bloque, int orden, String dominanciaPropia) {
@@ -3345,8 +3486,8 @@ public class EjercicioServiceImpl implements EjercicioService {
                1,1% de las palabras del diccionario y la z en el 2,9%, contra el 37,6% de la n.
                No merecen el mismo espacio que una tecla frecuente. */
             new PasoFundamentos("Fundamentos: v m", "Los índices bajan. El dedo se dobla y regresa a su tecla.", "inferior", "v m", "fj", "", 3, 20),
-            new PasoFundamentos("Fundamentos: c ,", "El medio baja y aparece la coma. La coma va pegada a la palabra, el espacio va después.", "inferior", "c ,", "dkvm", "", 3, 21),
-            new PasoFundamentos("Fundamentos: z x", "Las dos teclas menos usadas del idioma, con el punto y el guion asomando.", "inferior", "z x", "", ".-", 3, 24, "80,75,70,70"),
+            new PasoFundamentos("Fundamentos: c ,", "El medio baja: aparecen la c y la coma, las dos en la fila de abajo.", "inferior", "c ,", "dkvm", "", 3, 21),
+            new PasoFundamentos("Fundamentos: z x", "Dos de las teclas menos usadas del idioma, con el punto y el guion asomando.", "inferior", "z x", "", ".-", 3, 24, "80,75,70,70"),
             new PasoFundamentos("Fundamentos: b n", "El puente de abajo: el alcance más largo del teclado.", "inferior", "b n", "vmfghj", "", 3, 26));
 
     private void sembrarFundamentosCurso() {

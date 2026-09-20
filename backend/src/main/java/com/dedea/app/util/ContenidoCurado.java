@@ -796,51 +796,49 @@ public final class ContenidoCurado {
             "En los Andes peruanos los agricultores todavía usan terrazas construidas hace siglos para sembrar maíz y papa en las laderas más empinadas de la montaña. El sistema conserva el agua y evita que la tierra se pierda con la lluvia.",
             "Había una vez un zorro astuto que prometía cuidar el gallinero durante la noche a cambio de un lugar cálido para dormir. Los animales del corral aceptaron sin saber que el zorro solo buscaba la cena perfecta.");
 
-    /* LA FILA CENTRAL, EN FRASES. Alimenta el Contrarreloj del bloque 1 (orden 9).
+    /* LA FILA CENTRAL, EN COMBINACIONES CORTAS. Alimenta el Contrarreloj del bloque 1
+       (orden 9), que sirve sobre todo PALABRAS sueltas del diccionario y mete tres de
+       estas entre medias.
 
-       Antes ese nodo servia una LISTA de palabras del diccionario, igual que el nodo 8 que
-       tiene justo encima: dos nodos seguidos pidiendo lo mismo, y el segundo con un reloj.
-       Con frases se practica ademas el espacio entre palabras a ritmo, que es lo que una
-       lista nunca entrena, y el contrarreloj sigue midiendo por palabra igual que antes —el
-       bono cae en cada espacio, y en una frase hay tantos como en una lista.
+       El nodo pasó por las dos formas antes de llegar a esta. Primero era una lista pelada
+       de palabras, igual que el nodo 8 que tiene encima: dos nodos seguidos pidiendo lo
+       mismo y el segundo con un reloj. Después fueron seis frases enteras encadenadas, y
+       eso trajo dos problemas que el usuario vio en pantalla: se servían pegadas y sin
+       puntuación (`...dadas a la hada La alhaja falsa halaga Haga la lasaña...`, imposible
+       de leer) y cada frase traía su mayúscula, o sea cinco Shift de más en un nodo donde
+       la mayúscula se enseña una sola vez. Hoy: palabras sueltas, tres combinaciones para
+       que aparezca algo que suene a lengua, y UNA mayúscula, la de la primera palabra del
+       texto, que la pone el generador.
 
-       ⚠️ EL UNICO VOCAL DISPONIBLE ES LA `a`. En `a s d f g h j k l ñ` no hay ninguna otra,
-       asi que aqui no existe ni un solo verbo en plural (todos acaban en -n), ni articulo
-       masculino, ni la mayoria de las preposiciones. Lo que queda es: tercera persona del
-       singular, segunda del singular, imperativo de usted, y sustantivos femeninos en -a.
-       Con eso estan escritas estas frases.
+       ⚠️ LA ÚNICA VOCAL DISPONIBLE ES LA `a`. En `a s d f g h j k l ñ` no hay ninguna otra,
+       así que no existe ni un verbo en plural (todos acaban en -n), ni artículo masculino,
+       ni casi ninguna preposición. Por eso todas son del mismo molde: artículo + sustantivo
+       femenino + adjetivo.
 
-       Salen FORZADAS y el usuario ya lo sabe: fue su decision pedirlas igual, porque a los
-       nueve nodos de curso teclear algo que suene a lengua vale mas que otra lista. `la hada`
-       es el ejemplo claro —lo correcto es `el hada`, pero `el` lleva una `e`—.
+       ⚠️ NADA DE `la hada`. Las frases viejas lo usaban —lo correcto es `el hada`, y `el`
+       lleva una `e` que a esta altura no existe— y se aceptaba como el precio de escribir
+       frases. En combinaciones cortas ese precio ya no hace falta pagarlo: se escribe `las
+       hadas`, que es correcto, o se elige otro sustantivo. Si alguien añade una combinación
+       nueva, esta es la trampa que tiene que esquivar.
 
-       MAYÚSCULA INICIAL OBLIGATORIA desde el 11-sep-2026 —antes decía "todo en minúscula,
-       Shift es de Intermedio"—, revertido a pedido del usuario: si el nodo se lee como una
-       frase real, tiene que empezar como una. El mecanismo ya existía y es automático:
-       `necesitaShift` (frontend) detecta cualquier mayúscula en el texto y `AvisoTeclaEspecial`
-       bloquea el ejercicio en la PRIMERA hasta que salga bien, sin que el fallo cuente —no
-       hace falta ningún flag nuevo, alcanza con que el contenido la traiga. Sin puntuación
-       de todos modos: la coma es del orden 21 y el punto del 23.
+       Van en MINÚSCULA a propósito, al revés que los bancos de frases del nivel: la única
+       mayúscula del ejercicio es la primera palabra del texto entero, y esa la pone
+       `capitalizarPrimera`. Sin puntuación: la coma es del orden 21 y el punto del 24.
 
-       Verificado caracter a caracter contra `asdfghjklñ` mas el espacio (mayúscula inicial
-       incluida: usa la misma tecla que su minúscula, solo con Shift). */
-    public static final List<String> ORACIONES_BASICO_LINEA_BASE = List.of(
-            "La salsa salada falla",
-            "Haga la lasaña a la gala",
-            "Hallas las gafas falsas",
-            "Salga a la sala salada",
-            "La hada halla la alhaja",
-            "Jala la falda salada",
-            "Das las algas a la hada",
-            "La alfalfa da gas",
-            "Haga la salsa salada",
-            "La daga falsa falla",
-            "La alhaja falsa halaga",
-            "Salgas a la gala",
-            "Hallas la sala salada",
-            "Las faldas dadas a la hada",
-            "La lasaña salada halaga",
-            "Haga las alhajas falsas");
+       Verificado carácter a carácter contra `asdfghjklñ` más el espacio. */
+    public static final List<String> COMBINACIONES_BASICO_LINEA_BASE = List.of(
+            "la salsa salada",
+            "las gafas falsas",
+            "la lasaña salada",
+            "las alhajas falsas",
+            "la falda salada",
+            "la daga falsa",
+            "las algas saladas",
+            "la sala salada",
+            "las salsas saladas",
+            "las dagas falsas",
+            "las hadas",
+            "la alfalfa");
 
     /* LAS TECLAS NUEVAS DEL BLOQUE 2, EN FRASES. Alimenta el nodo 12, que hasta el
        10-sep-2026 servia una lista de palabras con el mismo patron.
@@ -859,13 +857,14 @@ public final class ContenidoCurado {
          · SIN PUNTUACION, como el resto del bloque: la coma es del orden 21 y el punto del 23.
 
        MAYÚSCULA INICIAL OBLIGATORIA desde el 11-sep-2026 —hasta entonces decía "sin
-       mayúsculas, Shift de Intermedio"—, revertido a pedido del usuario, igual que
-       ORACIONES_BASICO_LINEA_BASE (ver su nota, arriba): el mecanismo que bloquea el
-       ejercicio en la primera mayúscula (`AvisoTeclaEspecial`) ya existía y es automático,
-       así que el único cambio necesario fue el contenido.
+       mayúsculas, Shift de Intermedio"—, revertido a pedido del usuario: el mecanismo que
+       bloquea el ejercicio en la primera mayúscula (`AvisoTeclaEspecial`) ya existía y es
+       automático, así que el único cambio necesario fue el contenido. Acá cada frase es
+       una tanda, así que la mayúscula de cada una abre su propia tanda; en el nodo 9, que
+       sirve todo de corrido, la pone el generador una sola vez.
 
-       Ahora si cabe `el hada` → `El hada`, que en ORACIONES_BASICO_LINEA_BASE tuvo que ser
-       `la hada` porque todavia no habia `e`.
+       Ahora si cabe `el hada`, que en la fila central sola era imposible —`el` lleva una
+       `e`— y obligaba al incorrecto `la hada`. Ver COMBINACIONES_BASICO_LINEA_BASE.
 
        Verificado caracter a caracter contra `asdfghjklñruei` mas el espacio (mayúscula
        inicial incluida: usa la misma tecla que su minúscula, solo con Shift). */

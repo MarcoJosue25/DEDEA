@@ -1,5 +1,6 @@
 package com.dedea.app.service.impl;
 
+import com.dedea.app.dto.LatidoResponse;
 import com.dedea.app.model.Ejercicio;
 import com.dedea.app.model.enums.NivelCurso;
 import com.dedea.app.model.enums.RolEjercicioNivel;
@@ -226,6 +227,90 @@ class CatalogoCursoInvariantesTest {
 
         assertThat(conLatidos).as("si ningún nodo tuviera latidos, el test no probaría nada").isPositive();
         assertThat(fallas).as("%n%s", String.join(System.lineSeparator(), fallas)).isEmpty();
+    }
+
+    /* EL ÚLTIMO LATIDO ES UNA TANDA COMO LAS OTRAS TRES (19-sep-2026).
+
+       Hasta esa fecha buscaba palabras reales en el diccionario y se saltaba la dominancia
+       del plan: en "w o" servía quince palabras españolas donde la `w` no aparecía nunca y
+       la `o` a duras penas, o sea el latido final de un nodo donde sus dos teclas casi no
+       salían. El usuario lo cortó —"nunca autoricé eso, solo que baje a 80%"— y este test
+       es lo que impide que vuelva: mide la proporción real sobre muchas generaciones.
+
+       El margen es ancho a propósito (70-90 para un objetivo de 80): son tokens al azar, no
+       una cuota exacta. Con el generador viejo daba menos de 15, así que la regresión se ve
+       igual. */
+    @Test
+    void elUltimoLatidoRespetaLaDominanciaDeSuPlan() throws Exception {
+        CatalogoEnMemoria c = CatalogoEnMemoria.soloCurso();
+        Ejercicio nodo = c.porTitulo.get("Fundamentos: w o");
+        assertThat(nodo).as("el nodo de la auditoría sigue existiendo").isNotNull();
+
+        int nuevas = 0;
+        int total = 0;
+        for (int i = 0; i < 50; i++) {
+            List<LatidoResponse> latidos = c.servicio.generarContenido(nodo.getId(), null, null).latidos();
+            String ultimo = latidos.get(latidos.size() - 1).getTexto().replace(" ", "");
+            for (char ch : ultimo.toCharArray()) {
+                total++;
+                if (ch == 'w' || ch == 'o') nuevas++;
+            }
+        }
+
+        assertThat(100.0 * nuevas / total)
+                .as("%% de teclas nuevas en el último latido (el plan pide 80)")
+                .isBetween(70.0, 90.0);
+    }
+
+    /* El contrarreloj de la fila central: palabras sueltas, unas pocas combinaciones y UNA
+       sola mayúscula. Las tres cosas las pidió el usuario en la auditoría del nivel, y las
+       tres se rompen solas si alguien vuelve a apuntar el nodo a un banco de frases. */
+    @Test
+    void elContrarrelojDeLaFilaCentralSirvePalabrasConUnaSolaMayuscula() throws Exception {
+        CatalogoEnMemoria c = CatalogoEnMemoria.soloCurso();
+        Ejercicio nodo = c.porTitulo.get("Contrarreloj: palabras de la fila central");
+        assertThat(nodo).isNotNull();
+
+        for (int i = 0; i < 30; i++) {
+            String texto = c.servicio.generarContenido(nodo.getId(), null, null).texto();
+
+            assertThat(texto.chars().filter(Character::isUpperCase).count())
+                    .as("una mayúscula y solo una: %s", texto).isEqualTo(1);
+            assertThat(Character.isUpperCase(texto.charAt(0)))
+                    .as("y va en la primera letra: %s", texto).isTrue();
+            assertThat(texto.split(" ").length)
+                    .as("veinte palabras más las combinaciones").isGreaterThan(20);
+
+            String enMinuscula = texto.toLowerCase();
+            assertThat(ContenidoCurado.COMBINACIONES_BASICO_LINEA_BASE)
+                    .as("alguna combinación del banco aparece entera en: %s", texto)
+                    .anyMatch(enMinuscula::contains);
+        }
+    }
+
+    /* La lluvia de repaso cae FILA POR FILA: tres tramos de cuatro teclas, y las cuatro de
+       cada tramo pertenecen a la misma fila. La de abajo va sin la coma, el punto ni el
+       guion — decisión del usuario: este nodo cierra el repaso de las LETRAS del nivel.
+
+       Sin identificador no hay historial, así que salen los respaldos de cada fila; es el
+       mismo camino que el de un usuario nuevo. */
+    @Test
+    void laLluviaDeRepasoCaeFilaPorFila() throws Exception {
+        CatalogoEnMemoria c = CatalogoEnMemoria.soloCurso();
+        Ejercicio nodo = c.porTitulo.get("Lluvia de repaso: tus teclas más falladas");
+        assertThat(nodo).isNotNull();
+
+        String[] tramos = c.servicio.generarContenido(nodo.getId(), null, null).texto().split("\n");
+        assertThat(tramos).as("un tramo por fila del teclado").hasSize(3);
+
+        List<String> filas = List.of("asdfghjklñ", "qwertyuiop", "zxcvbnm");
+        for (int i = 0; i < tramos.length; i++) {
+            String fila = filas.get(i);
+            Set<String> teclas = new HashSet<>(List.of(tramos[i].trim().split(" ")));
+            assertThat(teclas).as("cuatro teclas en el tramo %d", i).hasSize(4);
+            assertThat(teclas).as("todas de la fila %s", fila)
+                    .allMatch(t -> fila.contains(t));
+        }
     }
 
     private static List<Ejercicio> conRol(List<Ejercicio> ejercicios, RolEjercicioNivel rol) {

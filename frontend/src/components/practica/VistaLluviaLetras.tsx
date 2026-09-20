@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Icono from '../ui/Icono';
 import IntroLluvia from './IntroLluvia';
+import { filaDe, NOMBRE_FILA } from './tecladoLayout';
 
 interface Props {
-  texto: string; // cola de tokens separados por espacio: letras sueltas, o letras+palabras
+  /* Cola de tokens separados por espacio: letras sueltas, o letras+palabras.
+     Si trae SALTOS DE LÍNEA son TRAMOS: la partida se reparte entre ellos en partes iguales
+     y cada uno se anuncia con sus teclas — ver TRAMOS, más abajo. */
+  texto: string;
   esOscuro?: boolean;
   onKeystroke: (correcta: boolean) => void;
   onIniciar: () => void;
@@ -243,6 +247,23 @@ const LETRAS_ANTES_DE_LA_PRIMERA_RAPIDA = 3;
    aviso. */
 const CAIDA_FINAL_SEGUNDOS = 0.45;
 const SEPARACION_FINAL = 60;   // ms entre que una aterriza y entra la siguiente
+
+/* TRAMOS. "Lluvia de repaso" (el cierre de Básico) divide su texto en tres secciones, una
+   por fila del teclado, y la partida reparte la duración entre ellas: diez segundos de la
+   fila del medio, diez de la de arriba y diez de la de abajo. Cada tramo se anuncia con un
+   cartel que trae SUS CUATRO TECLAS, que es la parte que el usuario pidió expresamente —
+   sin saber qué va a caer, una lluvia de las teclas que peor te salen es un examen sorpresa.
+
+   El cartel NO pausa el juego: sale flotando sobre la pista mientras las primeras letras ya
+   caen, igual que el aviso de quedarse sin reservas. Pausar cada diez segundos partiría en
+   tres una partida que dura treinta.
+
+   El resto de las lluvias del curso trae una sola sección y nada de esto se activa. */
+const ANUNCIO_TRAMO_MS = 1800;
+
+// El mismo salto de línea con el que el backend separa las tandas del resto del Curso.
+const SALTO_DE_TRAMO = '\n';
+
 /* Y el aviso se queda como mínimo esto antes de que la partida se cierre. Bajar la velocidad
    no alcanzaba solo: con un carril ya en rojo y una letra en el aire, el final llegaba en
    menos de medio segundo por lenta que cayera, y el aviso desaparecía antes de leerse. Con
@@ -272,6 +293,17 @@ const VistaLluviaLetras = ({
      caída ni el teclado del juego corren — si el bucle siguiera por detrás, las primeras
      letras caerían mientras el usuario lee y llegaría al suelo antes de empezar. */
   const [enIntro, setEnIntro] = useState(true);
+  const tramos = useMemo(
+    () => texto.split(SALTO_DE_TRAMO).map((t) => t.trim()).filter(Boolean),
+    [texto],
+  );
+  const hayTramos = tramos.length > 1;
+  // Sin tramos vale 0 y el bucle ni lo mira: una sola sección no se reparte en el tiempo.
+  const duracionTramo = hayTramos && duracionSegundos ? duracionSegundos / tramos.length : 0;
+  const [tramoActual, setTramoActual] = useState(0);
+  const tramoActualRef = useRef(0);
+  // Lo que dice el cartel del tramo en curso. Null = no hay cartel puesto.
+  const [anuncio, setAnuncio] = useState<{ fila: string; teclas: string[] } | null>(null);
   /* La altura medida de la pista (ver GEOMETRÍA). null mientras no se midió: el bucle no
      arranca hasta tenerla, o las primeras letras caerían con una altura y seguirían con
      otra. */
@@ -307,10 +339,31 @@ const VistaLluviaLetras = ({
   // Referencias a los carriles, para sacudirlos al recibir un golpe.
   const carrilesRef = useRef<(HTMLDivElement | null)[]>([]);
 
+  /* Las teclas del tramo en curso, en el orden en que se anuncian. Se sacan del propio
+     texto —no viajan aparte— y la FILA se deduce del teclado dibujado: el backend manda las
+     letras y el front ya sabe dónde vive cada una. */
+  const teclasDelTramo = useCallback((indice: number) => {
+    const seccion = tramos[indice] ?? '';
+    return [...new Set(seccion.split(' ').filter(Boolean))];
+  }, [tramos]);
+
+  const anuncioDelTramo = useCallback((indice: number) => {
+    const teclas = teclasDelTramo(indice);
+    const fila = teclas.length > 0 ? filaDe(teclas[0]) : null;
+    return { fila: fila === null ? 'estas teclas' : NOMBRE_FILA[fila], teclas };
+  }, [teclasDelTramo]);
+
   useEffect(() => {
-    tokensRef.current = texto.split(' ').filter(Boolean);
+    tokensRef.current = (tramos[tramoActual] ?? texto).split(' ').filter(Boolean);
     indiceTokenRef.current = 0;
-  }, [texto]);
+  }, [texto, tramos, tramoActual]);
+
+  // El cartel se va solo. Vive acá y no en el bucle para no depender de los fotogramas.
+  useEffect(() => {
+    if (!anuncio) return;
+    const t = window.setTimeout(() => setAnuncio(null), ANUNCIO_TRAMO_MS);
+    return () => window.clearTimeout(t);
+  }, [anuncio]);
 
   // Se recicla la cola (barajada de nuevo) si se agota: el ejercicio no tiene un final
   // "natural" por contenido, termina por tiempo o por perder un carril.
@@ -441,6 +494,18 @@ const VistaLluviaLetras = ({
       tiempoJuegoRef.current += dt;
       const segundos = tiempoJuegoRef.current / 1000;
 
+      /* EL CAMBIO DE TRAMO lo decide el reloj del juego, no un temporizador aparte: el
+         mismo que gobierna la velocidad de caída y el final de la partida, así que los
+         tres cortes caen exactamente en los tercios de la duración pedida. */
+      if (duracionTramo > 0) {
+        const tramo = Math.min(tramos.length - 1, Math.floor(segundos / duracionTramo));
+        if (tramo !== tramoActualRef.current) {
+          tramoActualRef.current = tramo;
+          setTramoActual(tramo);
+          setAnuncio(anuncioDelTramo(tramo));
+        }
+      }
+
       /* La velocidad se deriva de la altura de la pista para que agrandar el juego no lo
          vuelva más fácil (ver la nota de la geometría). */
       const base = (ALTURA_PISTA / CAIDA_INICIAL_SEGUNDOS) * factorCaida(segundos);
@@ -543,7 +608,8 @@ const VistaLluviaLetras = ({
 
     rafRef.current = requestAnimationFrame(tick);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [enIntro, alturaPista, intentarSpawnear, acabar, duracionSegundos, sacudirCarril]);
+  }, [enIntro, alturaPista, intentarSpawnear, acabar, duracionSegundos, sacudirCarril,
+      duracionTramo, tramos.length, anuncioDelTramo]);
 
   // Teclado propio. Ojo: ya pueden caer DOS letras a la vez, así que "la tecla correcta" es
   // cualquiera de las que estén en pantalla, no la de la única que había.
@@ -644,7 +710,11 @@ const VistaLluviaLetras = ({
         duracionSegundos={duracionSegundos}
         reservas={reservas}
         esOscuro={esOscuro}
-        onEmpezar={() => setEnIntro(false)}
+        onEmpezar={() => {
+          setEnIntro(false);
+          // El primer tramo no lo anuncia el bucle: nunca "cambia" a él.
+          if (hayTramos) setAnuncio(anuncioDelTramo(0));
+        }}
       />
     );
   }
@@ -669,6 +739,13 @@ const VistaLluviaLetras = ({
           <p className={`text-base font-semibold ${esOscuro ? 'text-cian' : 'text-emerald-600'}`}>
             ¡Sobrevive {duracionSegundos} segundos a la lluvia de letras!
           </p>
+        )}
+        {hayTramos && (
+          <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-bold"
+            style={{ background: 'rgba(255,197,61,0.15)', color: AMBAR }}>
+            <Icono nombre="keyboard_double_arrow_down" tamano={16} relleno />
+            Ahora {anuncioDelTramo(tramoActual).fila}
+          </span>
         )}
         {reservas !== undefined && (
           <span ref={pildoraRef}
@@ -752,6 +829,38 @@ const VistaLluviaLetras = ({
             escala de Tailwind (pedido del usuario: 24→28 px el título, 40→46 el icono) y
             porque `transform: scale` no sirve aquí: la animación de entrada anima `transform`
             y lo sustituiría entero, la misma trampa que el aviso de racha. */}
+        {anuncio && !sinReservas && (
+          <div className="pointer-events-none absolute inset-x-0 top-[14%] z-10 flex justify-center px-4">
+            <div className="sube-y-aparece flex flex-col items-center rounded-2xl border-2 text-center shadow-2xl"
+              style={{
+                padding: '20px 30px',
+                borderColor: 'rgba(255,197,61,0.55)',
+                background: esOscuro ? 'rgba(10,20,28,0.93)' : 'rgba(255,255,255,0.96)',
+                boxShadow: '0 18px 50px -14px rgba(255,197,61,0.45)',
+              }}
+              role="status"
+              aria-live="polite">
+              <p className={`font-bold ${esOscuro ? 'text-white' : 'text-slate-900'}`}
+                style={{ fontSize: 22, lineHeight: 1.2 }}>
+                ¡Letras de {anuncio.fila}!
+              </p>
+              <span className="mt-3 flex gap-2">
+                {anuncio.teclas.map((t) => (
+                  <kbd key={t}
+                    className="flex h-11 w-11 items-center justify-center rounded-lg border font-mono text-xl font-bold"
+                    style={{
+                      borderColor: 'rgba(255,197,61,0.45)',
+                      background: esOscuro ? 'rgba(255,197,61,0.12)' : '#FFFBEB',
+                      color: AMBAR,
+                    }}>
+                    {t}
+                  </kbd>
+                ))}
+              </span>
+            </div>
+          </div>
+        )}
+
         {sinReservas && (
           <div className="pointer-events-none absolute inset-x-0 top-[16%] z-10 flex justify-center px-4">
             <div className="sube-y-aparece flex flex-col items-center rounded-2xl border-2 text-center shadow-2xl"
