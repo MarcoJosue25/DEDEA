@@ -640,40 +640,83 @@ public final class ContenidoCurado {
 
        Lo que NO puede aparecer, aunque se busque: pantalla, escribir, aprender, mano, cien,
        también, número. Si alguien agrega un texto acá, tiene que verificarlo igual. */
-    /* LOS DOS EXAMENES DE BASICO. Uno solo por banco a proposito: la decision ya tomada es
-       que sean UN texto y no una tanda de frases sueltas, porque un examen tiene que ser el
-       mismo para todos y comparable consigo mismo entre intentos.
+    /* LOS DOS EXAMENES DE BASICO, REESCRITOS el 20-sep-2026. Hasta hoy los dos esquivaban
+       la tilde a propósito, con el argumento de que Básico todavía no la enseñaba — pero
+       ese argumento ya llevaba diez días muerto (Básico enseña el acento desde el
+       10-sep-2026) y encima quedó doblemente obsoleto con "La tilde" (6.24): hoy el nivel
+       FUERZA la tilde antes de este punto del sendero, así que un examen final sin tildes
+       medía menos de lo que el nivel ya enseñó. El usuario lo pidió directo: que el Test
+       Final tenga mayúsculas, tildes, comas, puntos y números de verdad.
 
-       Ninguno lleva tilde, y no es descuido: estan REDACTADOS para esquivar las palabras
-       que la necesitan, en vez de escribirlas mal.
+       **El Test Final sigue siendo UN texto solo**, decisión que no cambió: un examen
+       tiene que ser el mismo para todos y comparable consigo mismo entre intentos.
 
-       ⚠️ La mitad de esto ya era falsa antes de hoy: los dos textos YA arrancan con
-       mayúscula ("Antes de que...", "Escribir al tacto...") pese a que el comentario decía
-       "Tampoco llevan mayúsculas: Shift es de Intermedio" — nunca se actualizó. Lo único
-       que sigue siendo cierto es que esquivan la tilde, aunque la razón ya no aplica:
-       Básico SÍ enseña la tecla de acento desde el 10-sep-2026 ("Oraciones con tilde",
-       o17). No se tocó el contenido de los exámenes en esta pasada porque cambiar las
-       palabras de un test es una decisión de contenido aparte, no una corrección de
-       comentario — queda anotado para decidir si conviene sumarles tilde también.
+       **La Prueba de Nivel pasa de UN texto a SIETE**, servidos al azar en cada intento
+       (mismo mecanismo que ya usa `test_final_intermedio`, `cantidad:1` sobre una lista
+       más larga — no hace falta tocar el generador). Con la barra subiendo a 35 WPM
+       (CursoStatsServiceImpl.UMBRAL_TEST_NIVEL_WPM) hacen falta más intentos en promedio,
+       y un solo texto memorizado dejaría de medir nada.
 
-       Los dos usan las tres filas, la coma y el punto, e incluyen la z y la x (empezar,
-       experta, destreza, exige), que son las teclas que el nivel ensena mas tarde y peor. */
+       Los ocho textos (uno para el examen, siete para la prueba) cubren los cuatro temas
+       de la guía por parejas —cuerpo humano, un lugar real (Latinoamérica para el examen,
+       el resto del mundo para la prueba, a pedido del usuario: "que no sea Perú"),
+       tecnología/mecanografía y literatura de dominio público—, cada uno de 79 a 84
+       palabras, con varios números reales con el formato RAE que ya usa el examen de
+       Intermedio (espacio cada tres cifras desde 10 000, ninguno pegado a "mil"). Sin
+       ningún carácter que Básico no enseñe: nada de ¿¡?!, punto y coma, paréntesis ni `%`. */
     public static final List<String> TEXTO_TEST_FINAL_BASICO = List.of(
-            "Antes de que existiera el teclado, cada copia de un documento se copiaba a "
-                    + "mano, letra por letra, y un solo error obligaba a empezar la hoja de nuevo. "
-                    + "Hoy una persona experta escribe en una hora lo que antes costaba una jornada "
-                    + "entera de pluma y tinta.");
+            "El salar de Uyuni, en Bolivia, es el desierto de sal más grande del mundo, con "
+                    + "una superficie de más de 10 000 kilómetros cuadrados. Se formó hace más de "
+                    + "30 000 años, cuando varios lagos antiguos se secaron por completo. En época "
+                    + "de lluvia, una fina capa de agua cubre la sal y convierte todo el paisaje en "
+                    + "un espejo gigante que refleja el cielo. Cada año lo visitan más de 60 000 "
+                    + "turistas, atraídos por un paisaje sin límite aparente.");
 
-    /* Mas largo que el final, y esa es la diferencia importante: este lo hace gente que ya
-       teclea rapido y lo terminaria en treinta segundos, donde el WPM se infla un 18% (ver
-       CLAUDE.md 10.2). Ademas MUESTREA en vez de examinar: no puede apoyarse en nada que el
-       curso ensenara, porque quien lo hace puede no haber abierto un solo nodo. */
     public static final List<String> TEXTO_TEST_NIVEL_BASICO = List.of(
-            "Escribir al tacto es una destreza que exige calma y se construye despacio. El "
-                    + "secreto no es mover los dedos con prisa sino no mirar el teclado, dejar que la "
-                    + "mano recuerde el camino y volver siempre a la fila de reposo. Quien lo logra "
-                    + "deja de pensar en las teclas y empieza a pensar en lo que quiere decir, que es "
-                    + "para lo que sirve. La velocidad llega luego, sola, como consecuencia.");
+            "El corazón humano late en promedio 100 000 veces al día, sin detenerse nunca. En "
+                    + "una vida completa puede llegar a latir más de 2 500 millones de veces. La "
+                    + "sangre recorre todo el cuerpo en apenas 20 segundos, a través de más de "
+                    + "96 000 kilómetros de vasos sanguíneos. El cerebro pesa poco más de 1 300 "
+                    + "gramos, pero consume casi la quinta parte de la energía diaria del cuerpo. "
+                    + "Dormir bien y comer con cuidado sigue siendo la mejor forma de cuidarlo.",
+            "Una persona adulta respira, en promedio, unas 20 000 veces al día sin darse "
+                    + "cuenta. Cada inhalación lleva aire a los pulmones, que juntos tienen una "
+                    + "superficie interna de casi 70 metros cuadrados, casi como una cancha de "
+                    + "tenis pequeña. En reposo, los pulmones mueven cerca de 6 litros de aire por "
+                    + "minuto, y esa cifra puede subir a más de 100 litros durante un esfuerzo "
+                    + "intenso. Aprender a respirar despacio, con el abdomen, ayuda a mantener la "
+                    + "calma en momentos de estrés.",
+            "El desierto del Sahara ocupa más de 9 000 000 de kilómetros cuadrados, casi tanto "
+                    + "como todo el territorio de Estados Unidos. Durante el día, la temperatura "
+                    + "puede superar los 50 grados, pero por la noche baja tanto que a veces llega "
+                    + "a cero. Bajo esa arena interminable hay antiguos ríos y lagos que se "
+                    + "secaron hace más de 5000 años. Solo una parte del desierto está cubierta de "
+                    + "dunas de arena. El resto es roca, grava y montañas bajas poco conocidas.",
+            "El récord mundial de velocidad al escribir a máquina supera las 200 palabras por "
+                    + "minuto, algo que casi nadie logra ni con años de práctica. La mayoría de "
+                    + "los adultos escribe entre 30 y 40 palabras por minuto usando todos los "
+                    + "dedos. Aprender a escribir sin mirar el teclado puede duplicar esa "
+                    + "velocidad en menos de un año. Hoy, con más de 4 000 millones de personas "
+                    + "conectadas a internet, escribir rápido y sin errores se volvió una destreza "
+                    + "tan básica como leer.",
+            "Cada día se envían en el mundo más de 100 000 millones de mensajes de texto, la "
+                    + "mayoría desde un teléfono celular. Un usuario promedio revisa su pantalla "
+                    + "más de 80 veces al día. El primer mensaje de texto de la historia se envió "
+                    + "en 1992, con un simple saludo de fin de año. Desde entonces la forma de "
+                    + "comunicarse cambió por completo. Hoy, una sola persona escribe cientos de "
+                    + "mensajes al día, casi sin mirar el teclado ni una sola vez.",
+            "Don Quijote de la Mancha se publicó por primera vez en 1605, hace ya más de 400 "
+                    + "años, y sigue siendo una de las más leídas del mundo. Se tradujo a más de "
+                    + "140 idiomas y vendió más de 500 millones de copias. Su autor, Miguel de "
+                    + "Cervantes, escribió la segunda parte diez años después, en 1615. La "
+                    + "historia de un hombre que decide salir a buscar aventuras, armado solo con "
+                    + "su imaginación, todavía hace reír y pensar a quien la lee.",
+            "Alicia en el país de las maravillas se publicó en 1865. Su autor, un profesor de "
+                    + "matemáticas llamado Lewis Carroll, la escribió para entretener a una niña "
+                    + "real durante un paseo en bote. El libro se tradujo a más de 170 idiomas, "
+                    + "solo superado por la Biblia y las obras de Shakespeare. Casi 160 años "
+                    + "después de su publicación, el conejo blanco que siempre llega tarde sigue "
+                    + "siendo uno de los personajes más reconocidos y queridos de la literatura.");
 
     /* EL EXAMEN DE INTERMEDIO (18-sep-2026). Cuatro textos y se sirve UNO al azar en cada
        intento —también al recargar—, pedido del usuario: el examen se repite hasta aprobarlo,
@@ -885,6 +928,27 @@ public final class ContenidoCurado {
             "La aguja afilada rasga la seda",
             "El hada le regala alas a la ardilla",
             "Ella agrega sal a la salsa");
+
+    /* NUEVO el 20-sep-2026: "La tilde" (o18), el nodo que introduce la tecla del acento
+       ANTES de "Oraciones con tilde" — hasta hoy esa era la primera vez que aparecía. Cinco
+       tandas, una por vocal en orden a-e-i-o-u, ~10 palabras sencillas cada una, con la
+       tilde SIEMPRE en esa vocal y en ninguna otra parte de la palabra.
+
+       Restricción real, no cosmética: a esta altura del sendero (después de "Fundamentos:
+       t y", antes de la fila inferior) las únicas consonantes enseñadas son las de la fila
+       central y la superior — nada de b, c, m, n, v, x, z. Eso deja fuera a la enorme
+       mayoría del vocabulario con tilde en español (también, según, jamás, café, número...)
+       y explica por qué la tanda de la ú son casi todas formas de "situar" y "graduar": la
+       ú es la vocal con tilde menos frecuente del idioma, y de las pocas palabras que la
+       llevan, casi todas caen en "según", "aún" o "común" — las tres con ñ... digo, con n,
+       que todavía no se enseñó. Verificado carácter a carácter contra las 20 teclas
+       disponibles (afdghjklñqwertyuiop + sus 5 vocales con tilde). */
+    public static final List<String> PALABRAS_TILDE_POR_VOCAL = List.of(
+            "está allá atrás sofá papá área irá dará hará saldrá",
+            "qué él porqué después estés esté haré diré iré saldré",
+            "así aquí allí día país río frío tío salí seguí",
+            "salió llegó jugó quedó dejó pasó usó gastó gritó saltó",
+            "tú dúo grúa aúlla sitúa sitúe sitúo gradúa gradúe gradúo");
 
     public static final List<String> ORACIONES_BASICO_TILDES = List.of(
             "El té ya está frío y la tetera sigue por ahí",

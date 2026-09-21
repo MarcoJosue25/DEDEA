@@ -23,7 +23,15 @@ public class Ejercicio {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(nullable = false, length = 150)
+    /* Accent-sensitive a propósito, mismo motivo que diccionario.palabra (ver Diccionario.java
+       y CLAUDE.md 12.2): con la colación por defecto (utf8mb4_0900_ai_ci, insensible a
+       tildes), findByTitulo trataba "más" y "mas" como el MISMO título. Eso hizo que
+       retirarDelCurso() retirara el nodo recién resincronizado de "Lluvia de repaso: tus
+       teclas más falladas" apenas se sembraba, porque su entrada en RETIRADOS_DEL_CURSO
+       ("...tus teclas mas falladas", sin tilde) resolvía a la misma fila bajo esa colación.
+       El nodo quedaba invisible en el sendero en cada arranque, sin ningún error. */
+    @Column(nullable = false, length = 150,
+            columnDefinition = "VARCHAR(150) COLLATE utf8mb4_0900_as_ci")
     private String titulo;
 
     @Column(length = 300)

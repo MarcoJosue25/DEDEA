@@ -108,8 +108,16 @@ class AuditoriaFugasBasicoTest {
 
         for (Ejercicio e : sendero) {
             Map<String, Object> config = leerConfig(e);
-            if (Boolean.TRUE.equals(config.get("tildeObligatoria"))) ordenTilde = e.getOrden();
-            if (Boolean.TRUE.equals(config.get("progresionNumerica"))) ordenDigitos = e.getOrden();
+            /* Solo la PRIMERA vez (sendero en orden ascendente): con "La tilde" (20-sep-2026)
+               dos nodos ya traen `tildeObligatoria`, y lo que importa para las fugas es
+               desde cuándo empieza a estar permitida, no el último nodo que la exige. Antes
+               de "La tilde" había un solo nodo con el flag y el bug quedaba invisible. */
+            if (Boolean.TRUE.equals(config.get("tildeObligatoria")) && ordenTilde == null) {
+                ordenTilde = e.getOrden();
+            }
+            if (Boolean.TRUE.equals(config.get("progresionNumerica")) && ordenDigitos == null) {
+                ordenDigitos = e.getOrden();
+            }
 
             if (e.getTipo() != TipoEjercicio.LETRAS_BASICO || e.getOrden() > orden) continue;
             @SuppressWarnings("unchecked")

@@ -48,13 +48,31 @@ public class CursoStatsServiceImpl implements CursoStatsService {
 
     private static final NivelCurso[] ORDEN_NIVELES = {NivelCurso.BASICO, NivelCurso.INTERMEDIO, NivelCurso.AVANZADO};
 
-    /* Umbral FIJO por nivel para APROBAR EL NIVEL (Test Final y Test de Nivel usan
-       este mismo umbral — no una escalera adaptativa como el Área de Entrenamiento).
-       Números de partida, ajustables acá sin tocar la lógica. */
+    /* Umbral FIJO por nivel para APROBAR EL NIVEL vía Test Final (no una escalera
+       adaptativa como el Área de Entrenamiento). Números de partida, ajustables acá sin
+       tocar la lógica.
+
+       ⚠️ La Prueba de Nivel (Test de Nivel) YA NO usa este umbral — ver
+       UMBRAL_TEST_NIVEL_WPM, más abajo. Hasta el 20-sep-2026 los dos compartían el mismo
+       número, y ese era justamente el problema: alguien podía saltarse el nivel entero
+       tecleando a la misma velocidad mínima que se le exige a quien lo termina nodo por
+       nodo. El Test Final se queda en este umbral a propósito —incentiva seguir
+       mejorando, no es una puerta de salida—; la Prueba de Nivel pide más. */
     private static final Map<NivelCurso, Integer> UMBRAL_WPM = Map.of(
             NivelCurso.BASICO, 18,
             NivelCurso.INTERMEDIO, 32,
             NivelCurso.AVANZADO, 45);
+
+    /* El umbral de VELOCIDAD de la Prueba de Nivel, separado del de aprobar el nivel
+       (arriba) desde el 20-sep-2026. Pedido del usuario: si la Prueba de Nivel certifica
+       que ya estás listo para el nivel siguiente, tiene que pedir una velocidad real de
+       ese nivel siguiente, no la del que se está saltando. 35 WPM en Básico ya supera el
+       umbral por ejercicio de Intermedio (16) y se acerca al de aprobar Intermedio entero
+       (32) — quien lo cumple ya teclea, de hecho, a la velocidad de un graduado de
+       Intermedio. Sin entrada = usa UMBRAL_WPM del nivel (hoy solo Básico tiene Prueba de
+       Nivel; si algún día otro nivel suma una, definir acá su propio número). */
+    private static final Map<NivelCurso, Integer> UMBRAL_TEST_NIVEL_WPM = Map.of(
+            NivelCurso.BASICO, 35);
 
     private static final Map<NivelCurso, Integer> UMBRAL_PRECISION = Map.of(
             NivelCurso.BASICO, 90,
@@ -142,7 +160,7 @@ public class CursoStatsServiceImpl implements CursoStatsService {
                 .metaWpm(UMBRAL_WPM.get(nivel))
                 .metaPrecision(UMBRAL_PRECISION.get(nivel))
                 .pruebaNivelId(prueba != null ? prueba.getId() : null)
-                .pruebaNivelWpm(prueba != null ? UMBRAL_WPM.get(nivel) : null)
+                .pruebaNivelWpm(prueba != null ? UMBRAL_TEST_NIVEL_WPM.getOrDefault(nivel, UMBRAL_WPM.get(nivel)) : null)
                 .pruebaNivelPrecision(prueba != null ? UMBRAL_TEST_NIVEL_PRECISION : null)
                 .build();
     }
@@ -170,7 +188,7 @@ public class CursoStatsServiceImpl implements CursoStatsService {
         int umbralWpm;
         BigDecimal umbralPrecision;
         if (rol == RolEjercicioNivel.TEST_NIVEL) {
-            umbralWpm = UMBRAL_WPM.get(nivel);
+            umbralWpm = UMBRAL_TEST_NIVEL_WPM.getOrDefault(nivel, UMBRAL_WPM.get(nivel));
             umbralPrecision = UMBRAL_TEST_NIVEL_PRECISION;
         } else if (rol == RolEjercicioNivel.TEST_FINAL) {
             umbralWpm = UMBRAL_WPM.get(nivel);

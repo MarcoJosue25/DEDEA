@@ -142,7 +142,7 @@ public final class Constants {
 
        PRODUCCIÓN: false. Y no hay nada mas que revertir — el camino normal sigue vivo y es el
        que corre con la bandera apagada. */
-    public static final boolean GENERAR_LOS_TRES_NIVELES_IA = true;   // PRODUCCIÓN: false
+    public static final boolean GENERAR_LOS_TRES_NIVELES_IA = false;   // PRODUCCIÓN: false
 
     public static final int OBJETIVOS_SIMBOLO_POR_TEXTO = 5;
 

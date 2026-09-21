@@ -624,6 +624,8 @@ public class EjercicioServiceImpl implements EjercicioService {
         ThreadLocalRandom random = ThreadLocalRandom.current();
         List<String> tokens = new ArrayList<>();
         int escritos = 0;
+        char ultimoChar = 0;
+        int repetidas = 0;
 
         while (escritos < plan.caracteres()) {
             int largo = random.nextInt(plan.largoMin(), plan.largoMax() + 1);
@@ -637,12 +639,38 @@ public class EjercicioServiceImpl implements EjercicioService {
                             || random.nextInt(100) < plan.dominancia();
                     fuente = deLasNuevas ? nuevas : acumuladas;
                 }
-                token.append(fuente.charAt(random.nextInt(fuente.length())));
+                char elegido = elegirSinRepetir(fuente, ultimoChar, repetidas, random);
+                token.append(elegido);
+                if (elegido == ultimoChar) {
+                    repetidas++;
+                } else {
+                    ultimoChar = elegido;
+                    repetidas = 1;
+                }
             }
             tokens.add(token.toString());
             escritos += largo + 1; // +1 por el espacio que lo separa del siguiente
         }
         return String.join(" ", tokens);
+    }
+
+    /* Con pools de dos letras (como "a ñ") elegir cada carácter al azar e independiente del
+       anterior produce rachas como "ñññññ" con total normalidad — es aritmética de moneda,
+       no un error — pero se lee como un atasco en la letra minoritaria del par, no como
+       práctica real. Tope de MAX_SEGUIDAS_TANDA repeticiones seguidas, con el mismo criterio
+       que ya usa `teclasDelTutorial`: reintentar unas pocas veces y, si el pool tiene una sola
+       letra (o el azar insiste), rendirse y repetir — ahí SÍ es la única opción posible. */
+    private static final int MAX_SEGUIDAS_TANDA = 2;
+
+    private char elegirSinRepetir(String fuente, char ultimo, int repetidas, ThreadLocalRandom random) {
+        if (repetidas < MAX_SEGUIDAS_TANDA || fuente.length() <= 1) {
+            return fuente.charAt(random.nextInt(fuente.length()));
+        }
+        for (int intento = 0; intento < 5; intento++) {
+            char candidato = fuente.charAt(random.nextInt(fuente.length()));
+            if (candidato != ultimo) return candidato;
+        }
+        return fuente.charAt(random.nextInt(fuente.length()));
     }
 
     // Las diez teclas del tutorial, alternando las nuevas: para "d k" → d k d k d k d k d k.
@@ -1210,6 +1238,7 @@ public class EjercicioServiceImpl implements EjercicioService {
             case "basico_dos_filas" -> ContenidoCurado.ORACIONES_BASICO_DOS_FILAS;
             case "basico_tres_filas" -> ContenidoCurado.ORACIONES_BASICO_TRES_FILAS;
             case "basico_teclas_nuevas" -> ContenidoCurado.ORACIONES_BASICO_TECLAS_NUEVAS;
+            case "basico_tilde_por_vocal" -> ContenidoCurado.PALABRAS_TILDE_POR_VOCAL;
             case "test_final_basico" -> ContenidoCurado.TEXTO_TEST_FINAL_BASICO;
             case "test_final_intermedio" -> ContenidoCurado.TEXTO_TEST_FINAL_INTERMEDIO;
             case "test_nivel_basico" -> ContenidoCurado.TEXTO_TEST_NIVEL_BASICO;
@@ -1224,7 +1253,7 @@ public class EjercicioServiceImpl implements EjercicioService {
 
            Antes se unían con espacio y `partirEnTandas` las volvía a cortar por su cuenta.
            Eso funciona cuando el texto trae puntos, pero los bancos tempranos de Básico no
-           los tienen (el punto es del anular derecho, orden 23), así que ahí caía al reparto
+           los tienen (el punto es de "Fundamentos: z x", orden 24), así que ahí caía al reparto
            POR PALABRA y las tandas quedaban cortadas a mitad de frase: «…y perdí la hoja
            Papá» / «salió tarde pero llegó…». Tres frases sin relación entre sí, cada una
            partida por la mitad, leídas de corrido: eso es lo que no tenía coherencia.
@@ -1245,6 +1274,20 @@ public class EjercicioServiceImpl implements EjercicioService {
            sin ningun corte visible. El salto de linea nunca llega al texto que se teclea
            —el frente parte por el ANTES de pintar nada—, asi que no hay ninguna tecla
            nueva de por medio. */
+        /* `tandasFijas`: para "La tilde" (basico_tilde_por_vocal), donde el orden SÍ importa
+           —cada tanda es una vocal, a/e/i/o/u en ese orden— y no se puede barajar como
+           cualquier otro banco temático ni recortar a una muestra. Se sirve el banco entero,
+           en su orden, y solo se barajan las PALABRAS dentro de cada tanda para que no
+           salgan siempre en la misma fila. */
+        if (Boolean.TRUE.equals(config.get("tandasFijas"))) {
+            ThreadLocalRandom random = ThreadLocalRandom.current();
+            List<String> tandas = oraciones.stream().map(tanda -> {
+                List<String> palabras = new ArrayList<>(Arrays.asList(tanda.split(" ")));
+                Collections.shuffle(palabras, random);
+                return String.join(" ", palabras);
+            }).toList();
+            return String.join(union, tandas);
+        }
         return generarOraciones(oraciones, cantidad, union);
     }
 
@@ -2880,13 +2923,18 @@ public class EjercicioServiceImpl implements EjercicioService {
            diez de antes. El contrarreloj de abajo es el que usa todo el pool igual. */
         /* Con TUTORIAL, y es el único nodo de palabras que lo lleva: es el primero de todo
            el curso donde lo que aparece en pantalla es una palabra y no una sílaba inventada.
-           Las cinco primeras se tecleaN en cuadros grandes, sin reloj y sin medir nada, antes
-           de la tanda de dieciocho. */
+           Las cinco primeras salen ANTES, sin reloj y sin medir nada, de la tanda de dieciocho.
+
+           ⚠️ REESCRITO el 20-sep-2026: ya no se teclean en cuadros (TutorialTeclas). Pedido
+           del usuario: una simulación pasiva de las palabras escribiéndose solas, con el
+           teclado real debajo y la fila central latiendo. `tutorialSimulado` es el flag que
+           elige esa presentación en el front (IntroPalabrasBase) en vez de la interactiva —
+           genérico, no específico de este nodo, aunque hoy solo lo traiga este. */
         crearEnCursoSiNoExiste("Palabras de la línea base",
                 "Tus primeras palabras reales, todas con la fila de reposo.",
                 TipoEjercicio.PALABRAS_DE_FILA,
                 "{\"fila\":\"central\",\"letras\":\"" + FILA_CENTRAL + "\",\"cantidad\":18,"
-                        + "\"tutorialPalabras\":5,"
+                        + "\"tutorialPalabras\":5,\"tutorialSimulado\":true,"
                         + "\"mensajeTutorial\":\"Es hora de teclear tus primeras palabras\"}",
                 NivelCurso.BASICO, 1, 8);
 
@@ -2938,6 +2986,7 @@ public class EjercicioServiceImpl implements EjercicioService {
                 "Tus primeras frases enteras: ya entran la e, la i, la r y la u.",
                 TipoEjercicio.ORACIONES_TEMATICAS,
                 "{\"banco\":\"basico_teclas_nuevas\",\"cantidad\":4,\"porTandas\":true,"
+                        + "\"introTitulo\":\"Es hora de escribir tus primeras oraciones\","
                         + "\"introTexto\":\"Este nodo mezcla toda la fila central con las "
                         + "cuatro teclas nuevas de la fila de arriba: e, r, u, i.\"}",
                 NivelCurso.BASICO, 2, 12);
@@ -2957,42 +3006,63 @@ public class EjercicioServiceImpl implements EjercicioService {
                         + "\"dominancia\":95,\"duracionSegundos\":30" + RESERVAS_LLUVIA_BASICO + "}",
                 NivelCurso.BASICO, 2, 15, 0, java.math.BigDecimal.ZERO);
 
-        /* La tecla del acento, presentada. Va entre "t y" y las palabras de la fila
-           porque el acento vive en esa misma fila y porque de aqui en adelante todo el
-           nivel puede escribir con tildes. El aviso lateral explica el gesto: primero el
-           acento, despues la vocal — es tecla muerta y sola no escribe nada.
-
-           `tildeObligatoria`: en una vocal con tilde el cursor NO avanza hasta que salga
-           bien. Pedido del usuario — si el nodo existe para ensenar la tilde, dejar pasar
-           "a" por "á" le permite completarlo sin haberla escrito nunca. Los intentos
-           fallidos SI cuentan (tambien decision suya), al reves que la primera mayuscula:
-           ahi el usuario no podia deducir que le faltaba media pulsacion, y aqui tiene el
-           aviso lateral explicando el gesto delante. Solo las letras con tilde: el resto
-           del texto se falla como en cualquier nodo. */
-        crearEnCursoSiNoExiste("Oraciones con tilde",
-                "La tecla del acento: se pulsa antes de la vocal y sola no escribe nada.",
-                TipoEjercicio.ORACIONES_TEMATICAS,
-                "{\"banco\":\"basico_tildes\",\"cantidad\":3,\"porTandas\":true,"
-                        + "\"tildeObligatoria\":true}",
-                NivelCurso.BASICO, 2, 17);
-
         /* Las dos filas en un solo nodo. Antes habia uno de palabras de la fila superior
            y el contrarreloj de al lado servia palabras de las dos: dos nodos seguidos
            pidiendo lo mismo con distinto rotulo. Ahora este junta las dos fuentes y el
            contrarreloj pasa a oraciones, que es donde estaba la variedad que faltaba.
 
            El patron de dos filas ya INCLUYE las palabras que solo usan la de arriba:
-           "tepuy" y "papel" pasan los dos, asi que no hace falta mezclar dos consultas. */
+           "tepuy" y "papel" pasan los dos, asi que no hace falta mezclar dos consultas.
+
+           ⚠️ MOVIDO el 20-sep-2026 del orden 18 al 17, ANTES de "La tilde": pedido del
+           usuario, para cobrar las dos filas con palabras antes de meter el acento en
+           juego, en vez de después. */
         crearEnCursoSiNoExiste("Palabras de las dos filas",
                 "Todo lo que ya se puede escribir sin bajar de la fila de reposo.",
                 TipoEjercicio.PALABRAS_DE_FILA,
                 "{\"patron\":\"^[" + DOS_FILAS + "]+$\",\"porTandas\":true}",
+                NivelCurso.BASICO, 2, 17);
+
+        /* NUEVO el 20-sep-2026: "La tilde", antes de "Oraciones con tilde". Hasta hoy esa
+           frase era la primera vez que el acento aparecía en el nivel, sin ningún paso que
+           lo presentara solo. Acá son cinco tandas de palabras sencillas, una por vocal en
+           orden a-e-i-o-u — ver ContenidoCurado.PALABRAS_TILDE_POR_VOCAL para el porqué de
+           cada tanda y la nota sobre lo poco que da la ú con las consonantes disponibles a
+           esta altura.
+
+           `tandasFijas`: el orden a-e-i-o-u es curricular, no aleatorio — no se puede barajar
+           ni recortar como cualquier otro banco temático. Ver generarOracionesTematicas.
+
+           `tildeObligatoria`, igual que en "Oraciones con tilde": el cursor no avanza hasta
+           acertar la tilde, y los intentos fallidos SÍ cuentan. */
+        crearEnCursoSiNoExiste("La tilde",
+                "Cinco tandas, una por vocal: a, e, i, o, u. La tilde no se puede saltear.",
+                TipoEjercicio.ORACIONES_TEMATICAS,
+                "{\"banco\":\"basico_tilde_por_vocal\",\"porTandas\":true,\"tandasFijas\":true,"
+                        + "\"tildeObligatoria\":true}",
                 NivelCurso.BASICO, 2, 18);
 
-        /* ORACIONES bajo reloj, no palabras sueltas. El nodo anterior ya sirve palabras de
-           estas dos filas; encadenar dos nodos de listas cambiando solo el cronometro no
-           aportaba variedad. Con frases se practica ademas el espacio entre palabras a
-           ritmo, que es lo que una lista nunca entrena. */
+        /* La tecla del acento, ya presentada por "La tilde" (orden 18). Este nodo pasa de
+           palabras sueltas a ORACIONES completas —sigue siendo la misma tecla, pero acá se
+           practica dentro de una frase real, no aislada.
+
+           ⚠️ YA NO LLEVA `tildeObligatoria` (quitado el 20-sep-2026). Hasta hoy el cursor
+           tampoco avanzaba acá sin acertar la tilde — pero ese bloqueo nació cuando este
+           nodo era el PRIMER lugar del nivel donde aparecía el acento, y el usuario razonó
+           que forzarlo dos veces ya no tiene sentido: "La tilde" es quien enseña el gesto
+           bajo bloqueo; acá, con la tecla ya presentada, una tilde fallada se trata como
+           cualquier otro error del nodo — cuenta para la precisión, pero no detiene el
+           cursor. */
+        crearEnCursoSiNoExiste("Oraciones con tilde",
+                "La tecla del acento: se pulsa antes de la vocal y sola no escribe nada.",
+                TipoEjercicio.ORACIONES_TEMATICAS,
+                "{\"banco\":\"basico_tildes\",\"cantidad\":3,\"porTandas\":true}",
+                NivelCurso.BASICO, 2, 19);
+
+        /* ORACIONES bajo reloj, no palabras sueltas. "Palabras de las dos filas" ya sirve
+           palabras de estas dos filas; encadenar dos nodos de listas cambiando solo el
+           cronometro no aportaba variedad. Con frases se practica ademas el espacio entre
+           palabras a ritmo, que es lo que una lista nunca entrena. */
         /* `cantidad:1` desde el 11-sep-2026: cada ítem del banco ya es una oración larga
            entera (19-22 palabras), no una frase corta para encadenar. Ver la nota grande
            en ContenidoCurado.ORACIONES_BASICO_DOS_FILAS. */
@@ -3001,7 +3071,7 @@ public class EjercicioServiceImpl implements EjercicioService {
                 TipoEjercicio.CONTRARRELOJ,
                 "{\"banco\":\"basico_dos_filas\",\"cantidad\":1,"
                         + "\"tiempoInicialSegundos\":30,\"bonusCorrectaSegundos\":1,\"penalizacionErrorSegundos\":2}",
-                NivelCurso.BASICO, 2, 19);
+                NivelCurso.BASICO, 2, 20);
 
         // ---------- Bloque 3: fila inferior ----------
         crearEnCursoSiNoExiste("Lluvia de letras: los dedos que bajan",
@@ -3009,37 +3079,19 @@ public class EjercicioServiceImpl implements EjercicioService {
                 TipoEjercicio.LLUVIA_LETRAS,
                 "{\"modo\":\"letras\",\"letras\":\"vmc,fjdk\",\"foco\":\"vmc,\","
                         + "\"dominancia\":95,\"duracionSegundos\":30" + RESERVAS_LLUVIA_BASICO + "}",
-                NivelCurso.BASICO, 3, 22, 0, java.math.BigDecimal.ZERO);
+                NivelCurso.BASICO, 3, 23, 0, java.math.BigDecimal.ZERO);
 
-        /* COBRAR LAS TECLAS NUEVAS, que es lo que este bloque no hacia hasta el final.
+        /* "Palabras con la ve, la eme y la ce" (o23) SE RETIRÓ el 20-sep-2026 — pedido
+           directo del usuario, el título "suena mal". El título va a RETIRADOS_DEL_CURSO.
 
-           Los bloques 1 y 2 cobran sus teclas nuevas en un nodo de palabras al poco de
-           enseñarlas (orden 8 y 18); el 3 encadenaba siete nodos de letras sueltas antes
-           de la primera palabra. Medido contra el
-           diccionario: con la fila central, la superior y `v m c` —o sea sin b, n, z ni x—
-           salen 2.883 palabras, MAS DEL DOBLE de las 1.340 del nodo equivalente del bloque
-           anterior. Y las mas frecuentes son el nucleo del idioma: `de que la el es lo por me
-           para pero como todo muy vamos`. La eme trae `me, mi, muy, como`; la ce trae `como,
-           cosa, poco`; la ve trae `vamos, ver`.
-
-           ⚠️ El patron EXIGE al menos una `v`, `m` o `c`, no solo que no haya prohibidas.
-           Sin esa exigencia el pool son 2.883 palabras pero la mayoria no lleva ninguna de
-           las teclas nuevas: la primera tanda salio `lejos ella juego ahora puerta`, que es
-           un nodo del bloque anterior con otro titulo. Exigiendola quedan 1.543 —todavia mas
-           que las 1.340 del nodo equivalente del bloque 2— y las frecuentes son justo las que
-           el bloque acaba de desbloquear: `me mi como muy vamos casa mucho mejor ver vida`.
-           Es el mismo criterio que el nodo de la fila de abajo, mas abajo en este archivo.
-
-           ⚠️ El titulo NO puede ser "Palabras con las teclas nuevas": fue el del nodo 12
-           hasta el 10-sep-2026 y hoy esta en RETIRADOS_DEL_CURSO, asi que un nodo nuevo con
-           ese nombre se retiraria solo en cada arranque. Es la trampa del sembrado por
-           titulo, que ya mordio cinco veces. */
-        crearEnCursoSiNoExiste("Palabras con la ve, la eme y la ce",
-                "Con la eme y la ce entran de golpe las palabras más usadas del idioma.",
-                TipoEjercicio.PALABRAS_DE_FILA,
-                "{\"patron\":\"^[asdfghjklñqwertyuiopvmc]*[vmc][asdfghjklñqwertyuiopvmc]*$\","
-                        + "\"porTandas\":true}",
-                NivelCurso.BASICO, 3, 23);
+           Cobraba las teclas nuevas del bloque con un patrón que exigía al menos una v/m/c
+           (2.883 palabras sin la exigencia, 1.543 con ella — ver el comentario que tenía
+           este bloque hasta hoy, conservado en el historial de git si hace falta el dato).
+           No hace falta reemplazarlo: "Palabras de la fila de abajo" (o28, más abajo en
+           este archivo) ya cubre v/m/c junto con el resto de la fila inferior, y entre la
+           Lluvia de arriba (o23) y "Fundamentos: z x" (o24) sigue habiendo variedad de por
+           medio, así que la racha de puras teclas sueltas que motivó separar este bloque en
+           el 9-sep-2026 (ver la nota grande más abajo) no vuelve a aparecer. */
 
         /* EL RESPIRO. La primera mitad de este bloque no puede tener lenguaje: el punto y
            la coma son teclas de esta misma fila, asi que hasta aca no hay con que puntuar
@@ -3335,7 +3387,11 @@ public class EjercicioServiceImpl implements EjercicioService {
                un solo nodo con las DOS manos en su config dibujaba un sub-selector,
                inconsistente con el resto del Curso. Décima vez que un renombrado/split
                exige retirar el título viejo en el mismo cambio. */
-            "Oraciones con mano forzada al 90%");
+            "Oraciones con mano forzada al 90%",
+            /* Retirado el 20-sep-2026, sin reemplazo: pedido directo del usuario, el título
+               "suena mal". Lo que cobraba (v/m/c) ya lo cubre "Palabras de la fila de
+               abajo" (o28) junto con el resto de la fila inferior. */
+            "Palabras con la ve, la eme y la ce");
 
     private void retirarDelCurso() {
         for (String titulo : RETIRADOS_DEL_CURSO) {
@@ -3485,8 +3541,8 @@ public class EjercicioServiceImpl implements EjercicioService {
                `z x` van juntos porque entre los dos son el 3% del idioma: la x aparece en el
                1,1% de las palabras del diccionario y la z en el 2,9%, contra el 37,6% de la n.
                No merecen el mismo espacio que una tecla frecuente. */
-            new PasoFundamentos("Fundamentos: v m", "Los índices bajan. El dedo se dobla y regresa a su tecla.", "inferior", "v m", "fj", "", 3, 20),
-            new PasoFundamentos("Fundamentos: c ,", "El medio baja: aparecen la c y la coma, las dos en la fila de abajo.", "inferior", "c ,", "dkvm", "", 3, 21),
+            new PasoFundamentos("Fundamentos: v m", "Los índices bajan. El dedo se dobla y regresa a su tecla.", "inferior", "v m", "fj", "", 3, 21),
+            new PasoFundamentos("Fundamentos: c ,", "El medio baja: aparecen la c y la coma, las dos en la fila de abajo.", "inferior", "c ,", "dkvm", "", 3, 22),
             new PasoFundamentos("Fundamentos: z x", "Dos de las teclas menos usadas del idioma, con el punto y el guion asomando.", "inferior", "z x", "", ".-", 3, 24, "80,75,70,70"),
             new PasoFundamentos("Fundamentos: b n", "El puente de abajo: el alcance más largo del teclado.", "inferior", "b n", "vmfghj", "", 3, 26));
 

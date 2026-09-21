@@ -26,7 +26,13 @@ import static org.mockito.Mockito.when;
    LA PRUEBA DE NIVEL: el atajo que aprueba un nivel entero sin recorrer su sendero.
    Como se salta el nivel de una vez, tiene que exigir más precisión que terminarlo: 95%,
    decisión del usuario del 18-sep-2026 ("lo que importa es la precisión, no la
-   velocidad"). Hasta entonces pedía 80%, menos que el propio Test Final. */
+   velocidad"). Hasta entonces pedía 80%, menos que el propio Test Final.
+
+   Y desde el 20-sep-2026 exige tambien MÁS VELOCIDAD que terminar el nivel: 35 WPM en
+   Básico (UMBRAL_TEST_NIVEL_WPM), no los 18 del Test Final. Hasta entonces compartía el
+   umbral de "aprobar el nivel" (UMBRAL_WPM) con el Test Final, y eso permitía saltarse
+   Básico entero tecleando a la misma velocidad mínima que se le exige a quien lo termina
+   nodo por nodo — un atajo que certificaba menos de lo que decía certificar. */
 class CursoStatsServiceImplTest {
 
     private static final String UUID = "0f8fad5b-d9cb-469f-a165-70867728950e";
@@ -52,18 +58,24 @@ class CursoStatsServiceImplTest {
         assertThat(casi.getNivelAprobado()).isFalse();
 
         ResultadoCursoResponse justo = servicio.registrarProgresoEjercicio(
-                UUID, pruebaDeNivel(), 18, new BigDecimal("95.00"), false);
-        assertThat(justo.getSuperado()).as("95% y 18 WPM aprueban").isTrue();
+                UUID, pruebaDeNivel(), 35, new BigDecimal("95.00"), false);
+        assertThat(justo.getSuperado()).as("95% y 35 WPM aprueban").isTrue();
         assertThat(justo.getNivelAprobado()).isTrue();
         assertThat(justo.getNivelDesbloqueado()).isEqualTo("INTERMEDIO");
     }
 
-    // La precisión manda, pero la velocidad del nivel se sigue pidiendo.
+    /* La precisión manda, pero la Prueba pide SU PROPIA velocidad (35 en Básico), más alta
+       que la de aprobar el nivel por el sendero (18) — ver UMBRAL_TEST_NIVEL_WPM. */
     @Test
-    void laPruebaDeNivelSigueExigiendoLaVelocidadDelNivel() {
+    void laPruebaDeNivelExigeSuPropiaVelocidadMasAltaQueLaDelNivel() {
         ResultadoCursoResponse lento = servicio.registrarProgresoEjercicio(
-                UUID, pruebaDeNivel(), 17, new BigDecimal("100.00"), false);
-        assertThat(lento.getSuperado()).isFalse();
+                UUID, pruebaDeNivel(), 34, new BigDecimal("100.00"), false);
+        assertThat(lento.getSuperado()).as("34 WPM no llega a los 35 que pide la Prueba").isFalse();
+
+        // Y ni hablar del umbral de aprobar el nivel por el sendero (18): muy por debajo.
+        ResultadoCursoResponse muyLento = servicio.registrarProgresoEjercicio(
+                UUID, pruebaDeNivel(), 18, new BigDecimal("100.00"), false);
+        assertThat(muyLento.getSuperado()).as("18 WPM aprobaría el nivel por el sendero, no la Prueba").isFalse();
     }
 
     @Test
@@ -74,7 +86,7 @@ class CursoStatsServiceImplTest {
         CursoStatsResponse stats = servicio.obtenerStatsPorNivel(UUID, NivelCurso.BASICO);
 
         assertThat(stats.getPruebaNivelId()).isEqualTo(ID_PRUEBA);
-        assertThat(stats.getPruebaNivelWpm()).isEqualTo(18);
+        assertThat(stats.getPruebaNivelWpm()).as("35, no los 18 de aprobar el nivel por el sendero").isEqualTo(35);
         assertThat(stats.getPruebaNivelPrecision()).isEqualByComparingTo("95");
     }
 

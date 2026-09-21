@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -145,28 +146,13 @@ public class NoticiaServiceImpl implements NoticiaService {
             }
         }
 
-        /* ===== DESARROLLO — REVERTIR ANTES DE PUBLICAR =====
-           Orden por NIVEL (fáciles, medias, difíciles) para poder revisar una tanda de
-           corrido: con el orden aleatorio hay que buscar las fáciles salteadas por toda
-           la lista para compararlas entre sí. Es una ayuda de revisión, no el orden que
-           debe ver el usuario.
-
-           PRODUCCIÓN: volver a mezclar al azar con
-               Collections.shuffle(dtos, ThreadLocalRandom.current());
-           (hay que reponer el import de java.util.Collections). El azar existe porque el
-           ORDER BY id DESC deja las categorías en bloques —se siembran en orden fijo y
-           sus ids quedan agrupados—, así que sin mezclar la portada sale toda Tecnología
-           junta, después toda Deportes. Ordenar por nivel también rompe esos bloques,
-           pero agrupa por dificultad, que no es lo que se quiere en la portada.
-
-           Se ordena por el enum Dificultad, cuyo orden de declaración (FACIL, MEDIO,
-           DIFICIL) ya es el que queremos. nullsLast porque las noticias anteriores a que
-           existiera el campo pueden tenerlo en null. */
+        /* Mezclado al azar: el ORDER BY id DESC deja las categorías en bloques —se
+           siembran en orden fijo y sus ids quedan agrupados—, así que sin mezclar la
+           portada sale toda Tecnología junta, después toda Deportes. */
         List<NoticiaDTO> dtos = noticias.stream()
-                .sorted(Comparator.comparing(Noticia::getDificultad,
-                        Comparator.nullsLast(Comparator.naturalOrder())))
                 .map(mapper::toNoticiaDTO)
                 .collect(Collectors.toList());
+        Collections.shuffle(dtos, ThreadLocalRandom.current());
 
         return dtos;
     }
