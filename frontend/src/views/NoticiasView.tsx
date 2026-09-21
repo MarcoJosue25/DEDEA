@@ -230,13 +230,14 @@ const NoticiasView = () => {
                     </span>
                   </div>
 
-                  <h3 className="mb-4 text-xl font-bold leading-snug text-white">
+                  {/* flex-grow acá (y no en un párrafo aparte, que se quitó por pedido
+                      del usuario: la portada se veía muy cargada de texto) es lo que
+                      empuja el pie al fondo de la tarjeta, para que las tres de una
+                      misma fila queden con el botón alineado sin importar cuánto mida
+                      cada título. */}
+                  <h3 className="mb-6 flex-grow text-xl font-bold leading-snug text-white">
                     {noticia.titulo}
                   </h3>
-
-                  <p className="mb-6 flex-grow text-sm leading-relaxed text-gris-texto">
-                    {noticia.contenidoResumido || `${noticia.contenidoCompleto?.slice(0, 150)}...`}
-                  </p>
 
                   {/* El pie va dentro del cuerpo cuando no hay foto, y también en la
                       tarjeta central: ahí la imagen está arriba, así que no hay nada
