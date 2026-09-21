@@ -47,6 +47,15 @@ interface Props {
      solo el destello rojo genérico de `teclaError` (que marca la tecla que SÍ apretaste,
      no las que faltan). undefined o sin cambios = quieto. */
   sacudidaSello?: number;
+  /* MODO DEMOSTRACIÓN (IntroPalabrasBase, "Palabras de la línea base"): índice de fila en
+     `FILAS` a resaltar (2 = central), ignorando caracterEsperado/teclaError/teclaPulsada
+     por completo. Las teclas de esa fila laten en cian; el resto se apaga con opacidad, no
+     con un overlay aparte — es el mismo lenguaje que ya usa TutorialTeclas para "lo que no
+     toca todavía". undefined = comportamiento normal de práctica. */
+  filaResaltada?: number;
+  // Oculta la cabecera (dedo esperado + el botón de colores de dedo): no hay nada que
+  // decir ahí en modo demostración, donde no se está tecleando ningún carácter puntual.
+  ocultarCabecera?: boolean;
 }
 
 /* El teclado de ayuda del Curso, con guía de dedos.
@@ -63,7 +72,7 @@ interface Props {
    - el relieve de F y J, que es el ancla de la posición de reposo. */
 const TecladoGuia = ({
   caracterEsperado, teclaError, teclaPulsada, esOscuro, guiaDedos, onAlternarGuia,
-  conjuntoActivo, sinRojoDeError = false, sacudidaSello,
+  conjuntoActivo, sinRojoDeError = false, sacudidaSello, filaResaltada, ocultarCabecera = false,
 }: Props) => {
   // Cada tecla física tiene su propia etiqueta (los dos Shift incluidos: 'MAYUS-IZQ' y
   // 'MAYUS-DER' son etiquetas distintas), así que un nodo por etiqueta alcanza.
@@ -135,7 +144,26 @@ const TecladoGuia = ({
     ? FILAS.flat().find((t) => t.etiqueta === etiquetaEsperada)?.mano
     : null;
 
-  const estiloTecla = (t: Tecla): CSSProperties => {
+  const estiloTecla = (t: Tecla, fi: number): CSSProperties => {
+    /* Modo demostración: nada de lo que sigue (esperada, error, pulsada, dedo) tiene
+       sentido acá, así que corta antes de leer ninguna de esas props. */
+    if (filaResaltada !== undefined) {
+      const base: CSSProperties = {
+        width: ANCHO_TECLA * (t.ancho ?? 1) + GAP * ((t.ancho ?? 1) - 1),
+        flexShrink: 0,
+      };
+      if (fi === filaResaltada) {
+        return {
+          ...base,
+          borderColor: 'var(--color-cian)',
+          background: 'rgba(0,241,253,0.14)',
+          color: 'var(--color-cian)',
+        };
+      }
+      // Apagadas con opacidad, mismo lenguaje que TutorialTeclas usa para "todavía no".
+      return { ...base, opacity: 0.28 };
+    }
+
     const esEsperada = etiquetaEsperada === t.etiqueta;
     const esError = teclaError === t.etiqueta;
     const esAcentoPendiente = necesitaAcento && t.etiqueta === '´';
@@ -233,6 +261,7 @@ const TecladoGuia = ({
 
       {/* Qué dedo toca. Es la mitad pedagógica del asunto: el resaltado dice DÓNDE, esto
           dice CON QUÉ, y sin decirlo en palabras un color no significa nada la primera vez. */}
+      {!ocultarCabecera && (
       <div className="mb-4 flex min-h-8 flex-wrap items-center justify-between gap-3">
         {dedoEsperado && manoEsperada ? (
           <div className="flex items-center gap-2">
@@ -274,6 +303,7 @@ const TecladoGuia = ({
           {guiaDedos ? 'Colores de dedo: sí' : 'Colores de dedo: no'}
         </button>
       </div>
+      )}
 
       {/* overflow-x-auto: en una pantalla angosta el teclado no se deforma ni empuja el
           resto de la página — se desplaza dentro de su propia caja. */}
@@ -288,8 +318,10 @@ const TecladoGuia = ({
                   if (el) tileRefs.current.set(t.etiqueta, el);
                   else tileRefs.current.delete(t.etiqueta);
                 }}
-                style={estiloTecla(t)}
-                className={`relative flex h-11 items-center justify-center rounded-lg border text-xs font-bold transition-all ${claseBase}`}>
+                style={estiloTecla(t, fi)}
+                className={`relative flex h-11 items-center justify-center rounded-lg border text-xs font-bold transition-all ${claseBase} ${
+                  filaResaltada === fi ? 'destello-tecla-fila' : ''
+                }`}>
                 {t.etiqueta === 'espacio' ? ''
                   : t.etiqueta.startsWith('MAYUS') ? 'Shift' : t.etiqueta}
 

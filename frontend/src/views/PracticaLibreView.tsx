@@ -414,7 +414,11 @@ const PracticaLibreView = () => {
   }, [ilimitada, rellenarLinea]);
 
   useEffect(() => {
-    contenedorRef.current?.focus();
+    // `preventScroll`: ver la nota igual en CursoPracticaView — sin esto, cada vez que
+    // `handleKeyDown` cambia de referencia (típicamente al escribir la primera tecla) el
+    // navegador saltaba el scroll hasta acá, arrancándole al usuario la posición desde
+    // la que estaba mirando.
+    contenedorRef.current?.focus({ preventScroll: true });
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
@@ -581,8 +585,10 @@ const PracticaLibreView = () => {
       data-apariencia={apariencia}
       className="flex flex-col gap-6 outline-none">
 
-      {/* Barra de stats + selector de apariencia */}
-      <div className="flex items-start gap-4">
+      {/* Barra de stats + selector de apariencia. PEGAJOSA bajo el navbar (top-20 ≈ su
+          alto, 82px): ver la misma nota en CursoPracticaView — con un texto largo esta
+          fila quedaba arriba del todo y scrollear para ver el teclado la sacaba de vista. */}
+      <div className="sticky top-20 z-40 flex items-start gap-4 py-1 backdrop-blur-md">
         {esOscuro ? (
           <div className="grid flex-1 grid-cols-2 gap-4 md:grid-cols-4">
             {[

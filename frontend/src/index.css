@@ -264,6 +264,16 @@ body::after {
 
 .brilla-trofeo { animation: brilla-trofeo 2.4s ease-in-out infinite; }
 
+/* La fila resaltada del teclado de demostración (IntroPalabrasBase, "Palabras de la
+   línea base"): un brillo que LATE, no un tamaño que cambia — agrandar una tecla real
+   empujaría a las vecinas y desalinearía justo la fila que el dibujo enseña. */
+@keyframes destello-tecla-fila {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(0,241,253,0.35), 0 0 10px rgba(0,241,253,0.25); }
+  50%      { box-shadow: 0 0 0 4px rgba(0,241,253,0.70), 0 0 22px rgba(0,241,253,0.55); }
+}
+
+.destello-tecla-fila { animation: destello-tecla-fila 1.3s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   .estrella-aparece,
   .sube-y-aparece,
@@ -273,7 +283,8 @@ body::after {
     animation-iteration-count: 1;
   }
   .halo-late,
-  .brilla-trofeo {
+  .brilla-trofeo,
+  .destello-tecla-fila {
     animation: none;
   }
 }

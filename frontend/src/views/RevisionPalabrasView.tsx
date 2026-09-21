@@ -58,7 +58,8 @@ const RevisionPalabrasView = () => {
     setMarcadas(new Set());
     setCursor(0);
     setResumen(resu);
-    contenedorRef.current?.focus();
+    // `preventScroll`: sin esto, cargar una tanda nueva saltaba el scroll hasta acá.
+    contenedorRef.current?.focus({ preventScroll: true });
   }, []);
 
   const entrar = async () => {

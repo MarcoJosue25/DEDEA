@@ -25,6 +25,7 @@ import Icono from '../components/ui/Icono';
 import VistaCinta from '../components/practica/VistaCinta';
 import VistaRecorrido from '../components/practica/VistaRecorrido';
 import TutorialTeclas from '../components/curso/TutorialTeclas';
+import IntroPalabrasBase from '../components/curso/IntroPalabrasBase';
 import IntroRecorrido from '../components/curso/IntroRecorrido';
 import IntroInfo from '../components/practica/IntroInfo';
 import BloqueoTestFinal from '../components/curso/BloqueoTestFinal';
@@ -402,6 +403,14 @@ const CursoPracticaView = () => {
     ?.retoContrarreloj;
   // Ver la nota de IntroInfo: contenido curado, no mecánica — hoy solo lo trae un nodo.
   const introTextoNodo = (ejercicio?.configuracion as { introTexto?: string } | undefined)?.introTexto;
+  // Título opcional para esa misma ventana. Sin esto, siempre mostraba ejercicio.titulo.
+  const introTituloNodo = (ejercicio?.configuracion as { introTitulo?: string } | undefined)?.introTitulo;
+  /* "Palabras de la línea base", y SOLO ese nodo hoy: en vez de TutorialTeclas (teclear los
+     ítems uno por uno), una simulación pasiva de las palabras escribiéndose solas. Ver
+     IntroPalabrasBase. */
+  const tutorialSimulado = Boolean(
+    (ejercicio?.configuracion as { tutorialSimulado?: boolean } | undefined)?.tutorialSimulado,
+  );
   /* "Patrones de la mano izquierda/derecha": una lista, una tanda por patrón (ver
      generarPorPatronesEnTandas en el backend). El frente reusa esta MISMA lista para
      anunciar, en la ventana entre tandas, cuál combinación viene — no hace falta que el
@@ -1846,7 +1855,13 @@ const CursoPracticaView = () => {
   }, [esPalabrasFlotantes, ejercicio?.id]);
 
   useEffect(() => {
-    contenedorRef.current?.focus();
+    /* `preventScroll`: SIN esto, cada re-registro de este efecto (o sea, cada vez que
+       `handleKeyDown` cambia de referencia — típicamente al escribir la primera tecla,
+       cuando `corriendo` pasa de false a true) hacía que el navegador saltara el scroll
+       hasta este contenedor. Si el usuario había subido la pantalla para ver las
+       métricas, la primera pulsación se la arrancaba de las manos. `focus()` no necesita
+       mover el scroll para funcionar: los atajos de teclado ya escuchan en `window`. */
+    contenedorRef.current?.focus({ preventScroll: true });
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     return () => {
@@ -2437,7 +2452,11 @@ const CursoPracticaView = () => {
       data-apariencia={apariencia}
       className="flex flex-col gap-6 outline-none">
 
-      <div className="flex items-start gap-4">
+      {/* PEGAJOSO bajo el navbar (top-20 ≈ su alto, 82px): con un texto largo, esta fila
+          quedaba arriba del todo y scrollear para ver el teclado la sacaba de la vista —
+          justo lo que el usuario está mirando mientras teclea. El backdrop-blur separa la
+          fila del texto que sigue deslizándose por detrás en los huecos entre tarjetas. */}
+      <div className="sticky top-20 z-40 flex items-start gap-4 py-1 backdrop-blur-md">
         {esOscuro ? (
           <div className="grid flex-1 grid-cols-2 gap-4 md:grid-cols-4">
             {stats.map((s) => (
@@ -2722,6 +2741,13 @@ const CursoPracticaView = () => {
             esOscuro={esOscuro}
             onEmpezar={() => { faseNodoRef.current = 'latido'; setFaseNodo('latido'); }}
           />
+        ) : faseNodo === 'tutorial' && ejercicio.teclasTutorial && tutorialSimulado ? (
+          <IntroPalabrasBase
+            palabras={ejercicio.teclasTutorial}
+            mensaje={ejercicio.mensajeTutorial}
+            esOscuro={esOscuro}
+            onEmpezar={() => { faseNodoRef.current = 'latido'; setFaseNodo('latido'); }}
+          />
         ) : faseNodo === 'tutorial' && ejercicio.teclasTutorial ? (
           <TutorialTeclas
             items={ejercicio.teclasTutorial}
@@ -2750,7 +2776,7 @@ const CursoPracticaView = () => {
         ) : faseNodo === 'tutorial' && introTextoNodo ? (
           <IntroInfo
             icono="info"
-            titulo={ejercicio.titulo}
+            titulo={introTituloNodo ?? ejercicio.titulo}
             mensaje={introTextoNodo}
             esOscuro={esOscuro}
             onEmpezar={() => { faseNodoRef.current = 'latido'; setFaseNodo('latido'); }}

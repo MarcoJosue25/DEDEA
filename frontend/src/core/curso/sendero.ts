@@ -15,20 +15,26 @@ export const nivelSiguiente = (nivel: NivelCurso): NivelCurso | null => {
 };
 
 /* NIVELES EN CONSTRUCCIÓN: cerrados aunque el anterior esté aprobado. Avanzado entra acá el
-   18-sep-2026, decisión del usuario: Intermedio ya puede aprobarse con su Test Final, y
-   Avanzado todavía no está terminado (entre otras cosas trae `N.º`, que no se teclea en un
-   teclado latinoamericano). El backend lo desbloquea igual al aprobar Intermedio; lo que lo
-   cierra es esta lista, y sacarlo de acá es lo que lo abre. `DESBLOQUEAR_TODO_EL_CURSO` lo
-   sigue abriendo en desarrollo, para poder trabajar en él. */
-const EN_CONSTRUCCION: ReadonlySet<NivelCurso> = new Set<NivelCurso>(['AVANZADO']);
+   18-sep-2026 (todavía no está terminado: entre otras cosas trae `N.º`, que no se teclea en
+   un teclado latinoamericano). Intermedio se suma el 20-sep-2026, al publicar V1 por etapas:
+   decisión del usuario de que solo Básico quede abierto al público (reclutadores incluidos)
+   mientras el resto se sigue puliendo, aunque su contenido ya esté sembrado y su Test Final
+   funcione. El backend desbloquea los dos igual, al aprobar el nivel anterior; lo que los
+   cierra es esta lista, y sacar uno de acá es lo que lo abre. `DESBLOQUEAR_TODO_EL_CURSO` los
+   sigue abriendo en desarrollo, para poder trabajar en ellos. */
+const EN_CONSTRUCCION: ReadonlySet<NivelCurso> = new Set<NivelCurso>(['INTERMEDIO', 'AVANZADO']);
 
 export const enConstruccion = (nivel: NivelCurso): boolean => EN_CONSTRUCCION.has(nivel);
 
 /* Lo que dice un nivel bloqueado, igual en el selector y en la pantalla de su sendero.
    Un texto por nivel porque "aprueba el nivel anterior" obliga a adivinar cuál es.
 
-   ⚠️ El de Avanzado lo eligió el usuario sabiendo que, mientras siga en construcción,
-   completar Intermedio todavía no lo abre: pasa a ser literal al sacarlo de la lista. */
+   ⚠️ Los dos mensajes se eligieron sabiendo que, mientras el nivel siga en esta lista,
+   aprobar el anterior todavía no lo abre: pasan a ser literales al sacar el nivel de acá
+   (igual que ya se aceptó para Avanzado el 18-sep-2026). Alguien que ya aprobó Básico va a
+   seguir viendo "completa Básico" hasta que Intermedio salga de la lista — es el precio de
+   no inventar un tercer texto ("todavía no está publicado") para un cierre que se espera
+   temporal. */
 const MENSAJE_BLOQUEO: Partial<Record<NivelCurso, string>> = {
   INTERMEDIO: 'Completa el nivel Básico para empezar el Intermedio.',
   AVANZADO: 'Se desbloquea al completar el curso de Intermedio.',

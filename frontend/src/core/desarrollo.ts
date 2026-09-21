@@ -22,7 +22,7 @@
    que un nodo se desbloquea al aprobar el anterior hay que poner esto en false.
 
    PRODUCCIÓN: false. */
-export const DESBLOQUEAR_TODO_EL_CURSO = true;
+export const DESBLOQUEAR_TODO_EL_CURSO = false;
 
 /* Las flechas ← y → saltan al ejercicio anterior/siguiente DENTRO del nivel, sin volver al
    sendero. Solo en /curso/:nivel/:id — en Ejercicios Base no hay secuencia que recorrer.

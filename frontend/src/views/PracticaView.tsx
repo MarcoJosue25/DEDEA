@@ -596,7 +596,8 @@ const registrarNgram = useCallback((secuencia: string, tipo: 'BIGRAMA' | 'TRIGRA
     totalPresionadasRef.current = 0;
     segundosRef.current = 0;
     indiceRef.current = 0;
-    contenedorRef.current?.focus();
+    // `preventScroll`: ver la nota grande donde se registra el keydown, más abajo.
+    contenedorRef.current?.focus({ preventScroll: true });
   }, []);
 
   const irANoticia = useCallback((nuevoIndice: number) => {
@@ -806,7 +807,13 @@ if (esCorrecta) {
   }, [corriendo, terminado, guardando, modoEstricto, registrarNgram, irANoticia]);
 
   useEffect(() => {
-    contenedorRef.current?.focus();
+    /* `preventScroll`: SIN esto, cada re-registro de este efecto (cada vez que
+       `handleKeyDown` cambia de referencia — típicamente al escribir la primera tecla,
+       cuando `corriendo` pasa de false a true) hacía que el navegador saltara el scroll
+       hasta este contenedor, arrancándole al usuario la posición desde la que estaba
+       mirando las métricas. `focus()` no necesita mover el scroll para funcionar: los
+       atajos de teclado ya escuchan en `window`. */
+    contenedorRef.current?.focus({ preventScroll: true });
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
@@ -1257,7 +1264,10 @@ if (!noticia) return <Spinner texto="Cargando texto..." />;
         </div>
       )}
 
-      <div className="flex items-start gap-4">
+      {/* PEGAJOSO bajo el navbar (top-20 ≈ su alto, 82px): ver la misma nota en
+          CursoPracticaView. Con un texto largo, esta fila quedaba arriba del todo y
+          scrollear para ver el teclado la sacaba de la vista. */}
+      <div className="sticky top-20 z-40 flex items-start gap-4 py-1 backdrop-blur-md">
         <div className="grid flex-1 grid-cols-2 gap-4 md:grid-cols-4">
           {stats.map((stat) => (
             <div

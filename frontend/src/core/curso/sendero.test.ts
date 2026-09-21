@@ -56,15 +56,16 @@ describe('nivelSiguiente', () => {
   });
 });
 
-/* Avanzado queda cerrado mientras se termina, aunque Intermedio ya pueda aprobarse
-   (decisión del usuario, 18-sep-2026). Sacarlo de la lista es lo que lo abre. */
+/* Avanzado queda cerrado mientras se termina (decisión del usuario, 18-sep-2026), e
+   Intermedio se suma al publicar V1 por etapas (20-sep-2026): solo Básico queda abierto al
+   público mientras el resto se sigue puliendo. Sacar un nivel de la lista es lo que lo abre. */
 describe('enConstruccion', () => {
-  it('Avanzado está en construcción', () => {
+  it('Intermedio y Avanzado están en construcción', () => {
+    expect(enConstruccion('INTERMEDIO')).toBe(true);
     expect(enConstruccion('AVANZADO')).toBe(true);
   });
 
-  it('Básico e Intermedio no', () => {
+  it('Básico no', () => {
     expect(enConstruccion('BASICO')).toBe(false);
-    expect(enConstruccion('INTERMEDIO')).toBe(false);
   });
 });
