@@ -185,344 +185,6 @@ public class NoticiaServiceImpl implements NoticiaService {
         return mapper.toNoticiaDTO(noticia);
     }
 
-    @Override
-    // @Async("newsTaskExecutor"): Mueve este método al pool dedicado definido en AppConfig.
-    // El scheduler llama a este método y queda libre inmediatamente.
-    // El trabajo pesado (scraping + Gemini + Thread.sleep) corre en un hilo separado.
-    // IMPORTANTE: @Async solo funciona cuando el método es llamado desde OTRA clase.
-    // Si lo llamas desde dentro de este mismo service, Spring ignora el @Async.
-    @Async("newsTaskExecutor")
-    /* SIN @Transactional a propósito.
-       Antes el método entero era una sola transacción, y como adentro hay un
-       Thread.sleep(8000) por noticia, quedaba abierta varios minutos y NADA se
-       commiteaba hasta el final: si la tanda fallaba o se cortaba a mano, se perdía
-       todo lo procesado y el front seguía sin ver una sola noticia.
-       Sin la anotación, cada noticiaRepository.save() commitea por su cuenta y las
-       noticias van apareciendo en la portada a medida que se generan. */
-    public void procesarNoticiasDeApiExternaAsync() {
-        /* CANDADO. Sin esto, dos llamadas seguidas arrancan dos tandas en paralelo que
-           recorren la misma lista de GNews y guardan las mismas noticias por duplicado.
-           Observado en vivo. Ver CandadoSincronizacion. */
-        if (!candado.tomar()) {
-            log.warn("[FLUJO-VIEJO] Ya hay una sincronización en curso ({}). Se ignora esta llamada.",
-                    candado.tiempoTomado());
-            return;
-        }
-        try {
-            LocalDate hoy = LocalDate.now();
-
-            /* Títulos ya guardados hoy, cruzando TODAS las categorías — se le pasan a Gemini
-               con cada artículo nuevo para que descarte el que trate el mismo evento (el caso
-               del eclipse solar como noticia principal de Tecnología, Ciencia y Cultura a la
-               vez). Precargados desde la base y no solo acumulados en memoria porque el cron
-               corre 2 veces al día: sin esto, la tanda de la noche no sabría qué cubrió la de
-               la mañana. Mutable a propósito, para ir sumando cada título nuevo dentro de
-               esta misma corrida. */
-            List<String> titulosGuardadosHoy = new ArrayList<>(noticiaRepository.findTitulosByFechaPublicacion(hoy));
-
-            /* Contadores de la cuota de dificultad del día (3 difíciles / 4 medias / 3
-               fáciles). Precargados desde la base por la misma razón que titulosGuardadosHoy:
-               con el cron corriendo 2 veces al día, la tanda de la noche tiene que continuar
-               el reparto de la mañana en vez de empezar de cero.
-               Cuentan lo que DifficultyScorer midió DE VERDAD, no lo que se le pidió a
-               Gemini — ver el bucle de abajo. */
-            int dificilesLogrados = (int) noticiaRepository.countByFechaPublicacionAndDificultad(hoy, Dificultad.DIFICIL);
-            int mediosLogrados = (int) noticiaRepository.countByFechaPublicacionAndDificultad(hoy, Dificultad.MEDIO);
-            int facilesLogrados = (int) noticiaRepository.countByFechaPublicacionAndDificultad(hoy, Dificultad.FACIL);
-
-            /* Contadores de lo PEDIDO — son los que deciden qué nivel se le pide al siguiente
-               artículo (ver elegirNivelObjetivo). Separados de los "logrados" de arriba, que
-               siguen existiendo para dos cosas distintas: el tope flexible de la difícil
-               (topeEfectivo) y el respaldo dinámico del prompt (nivelDeRespaldo).
-
-               Arrancan desde lo ya guardado hoy como mejor aproximación disponible: no queda
-               registro de qué se PIDIÓ en una corrida anterior, pero sí de qué quedó
-               guardado. Solo importa al reanudar una tanda cortada a la mitad. */
-            int pedidosDificil = dificilesLogrados;
-            int pedidosMedio = mediosLogrados;
-            int pedidosFacil = facilesLogrados;
-
-            /* Antes esto abortaba si existía UNA sola noticia de hoy. Con el corte por cuota
-               eso dejaba el día tullido para siempre: si Gemini se agotaba en la quinta,
-               quedaban 4 guardadas y cualquier reintento posterior se abortaba de entrada,
-               sin forma de completar las 6 que faltaban.
-               Ahora se compara contra el objetivo del día y solo se aborta si ya está completo.
-               Los artículos ya guardados se saltan igual por el existsByUrl de más abajo. */
-            /* El Math.min no es solo de pruebas: el objetivo del día NUNCA puede superar el
-               tope duro. Sin él, con 1 por categoría x 5 categorías el objetivo sería 5 y
-               MAX_NOTICIAS_POR_DIA cortaría en 3, así que la corrida nunca se daría por
-               completa y cada reintento volvería a llamar a Gemini buscando las 2 que
-               "faltan". Vale igual en producción: con 2 x 5 y tope 30, devuelve 10. */
-            int objetivoDelDia = Math.min(
-                    Constants.NOTICIAS_POR_CATEGORIA * CATEGORIAS.size(),
-                    Constants.MAX_NOTICIAS_POR_DIA);
-            long yaGuardadasHoy = noticiaRepository.countByFechaPublicacion(hoy);
-
-            if (yaGuardadasHoy >= objetivoDelDia) {
-                log.info("[SCRAPER] Las {} noticias de hoy ({}) ya están completas. Misión abortada.", yaGuardadasHoy, hoy);
-                return;
-            }
-            if (yaGuardadasHoy > 0) {
-                log.info("[SCRAPER] Hoy ({}) hay {} de {} noticias. Se reanuda para completar las que faltan.",
-                        hoy, yaGuardadasHoy, objetivoDelDia);
-            }
-
-            log.info("Iniciando conexión con NewsAPI para descarga de URLs...");
-
-            int nuevasGuardadas = 0;
-            int fallosSeguidos = 0;
-
-            // Cupo fijo por categoría (Constants.NOTICIAS_POR_CATEGORIA). Sin esto, GNews
-            // devuelve ~10 por llamada y las primeras categorías se comerían el tope diario
-            // entero, dejando a las últimas siempre en cero.
-            int topePorCategoria = Constants.NOTICIAS_POR_CATEGORIA;
-
-            for (CategoriaFuente categoria : CATEGORIAS) {
-
-                /* Se cuenta yaGuardadasHoy + nuevasGuardadas, no solo nuevasGuardadas: este
-                   último arranca en 0 en CADA corrida, así que al reanudar una tanda cortada
-                   el tope se aplicaba solo a lo nuevo y se ignoraba lo que ya había en la
-                   base. Con 1 noticia guardada y el tope en 3, una segunda corrida habría
-                   agregado hasta 3-4 más en vez de completar hasta 3. */
-                long totalDelDia = yaGuardadasHoy + nuevasGuardadas;
-                if (totalDelDia >= topeEfectivo(dificilesLogrados)) {
-                    log.info("Límite de {} noticias alcanzado ({} en total hoy, {} difíciles logradas). Deteniendo procesamiento.",
-                            topeEfectivo(dificilesLogrados), totalDelDia, dificilesLogrados);
-                    break;
-                }
-
-                /* Arranca en lo que YA hay de esta categoría hoy, no en cero: así una tanda
-                   reanudada completa los huecos en vez de duplicar el cupo de las categorías
-                   que ya estaban listas. */
-                int guardadasDeEstaCategoria =
-                        (int) noticiaRepository.countByFechaPublicacionAndCategoria(hoy, categoria.etiqueta());
-
-                if (guardadasDeEstaCategoria >= topePorCategoria) {
-                    log.info("'{}' ya tiene su cupo de {} para hoy. Se salta.", categoria.etiqueta(), topePorCategoria);
-                    continue; // no se gasta ni la llamada a GNews
-                }
-
-                List<Map<String, Object>> articulos = newsApiClient.obtenerNoticiasPorCategoria(categoria.gnews());
-
-                for (Map<String, Object> art : articulos) {//Recorremos cada artículo dentro de artículos
-
-                    // Respetamos el límite diario definido en Constants y el reparto por categoría
-                    // Mismo tope flexible que el bucle de afuera.
-                    if (yaGuardadasHoy + nuevasGuardadas >= topeEfectivo(dificilesLogrados)) {
-                        break;
-                    }
-                    if (guardadasDeEstaCategoria >= topePorCategoria) {
-                        log.info("Cupo de {} noticias para '{}' completado.", topePorCategoria, categoria.etiqueta());
-                        break;
-                    }
-
-                    try {
-                        String url = (String) art.get("url");
-                        //.get(): Método que devuelve el valor asociado a la clave
-                        //(String)Casteo: Ordena tratar el objeto como String para la aplicacion del metodo
-
-                        if (noticiaRepository.existsByUrl(url)) {
-                            continue;
-                        }
-
-                        String titulo = (String) art.get("title");
-                        String fuente = (String) ((Map<?, ?>) art.get("source")).get("name");
-
-                        String textoScrapeado = webScraperClient.extraerTextoDeUrl(url);
-                        if (textoScrapeado.isEmpty()) {
-                            continue;
-                        }
-
-                        String textoParaPrompt = textoScrapeado.length() > 4000
-                                ? textoScrapeado.substring(0, 4000)
-                                : textoScrapeado;
-
-                        /* Qué nivel pedirle a Gemini para ESTE artículo: se prioriza el que
-                           todavía no llenó su cuota, de más difícil a más fácil. Es solo una
-                           preferencia — lo que salga lo decide DifficultyScorer más abajo. */
-                        /* Se mira el artículo YA scrapeado y recortado (textoParaPrompt, que es
-                           exactamente lo que va a ver Gemini) para pedirle el nivel que su
-                           contenido puede sostener. */
-                        /* Se salta lo que no es una noticia (ver pareceFormatoRecurrente). */
-                        if (pareceFormatoRecurrente(titulo, url)) {
-                            log.info("[NEWS-SYNC] Formato recurrente (no es noticia), se salta: {}", titulo);
-                            continue;
-                        }
-
-                        PerfilArticulo perfil = PerfilArticulo.medir(textoParaPrompt);
-                        int datosDelArticulo = perfil.datosNumericos();
-                        Dificultad techoDelArticulo = perfil.nivelQueAdmite();
-
-                        Dificultad nivelObjetivo = elegirNivelObjetivo(
-                                dificilesLogrados, mediosLogrados, facilesLogrados,
-                                pedidosDificil, pedidosMedio, pedidosFacil, techoDelArticulo);
-
-                        /* El contador de lo PEDIDO se sube MÁS ABAJO, recién cuando la
-                           noticia quedó guardada. Contarlo acá, antes de la llamada, hacía que
-                           un fallo de infraestructura QUEMARA el nivel: el 21-ago un error de
-                           Gemini tumbó el artículo al que le tocaba MEDIO, el contador avanzó
-                           igual, y la tanda terminó con fácil + difícil + difícil sin una sola
-                           media. */
-
-                        /* A qué nivel puede caer si el artículo no da para DIFICIL. Se calcula
-                           acá (no adentro del prompt) porque necesita los contadores del día. */
-                        Dificultad nivelRespaldo = nivelDeRespaldo();
-
-                        String promptPeriodistico = construirPromptNoticia(
-                                titulo, textoParaPrompt, titulosGuardadosHoy, nivelObjetivo, nivelRespaldo);
-
-                        // Si Gemini falla lanza ApiException, el catch la atrapa
-                        // y el loop continúa con el siguiente artículo
-                        String resumenIa = geminiApiClient.generarTexto(promptPeriodistico);
-
-                        /* Gemini comparó este artículo contra los títulos ya cubiertos hoy y
-                           decidió que es el mismo evento (ver construirPromptNoticia): se
-                           descarta como si el scraping hubiera venido vacío. La llamada a la
-                           IA ya se hizo —cuenta contra la cuota igual—, así que la pausa de
-                           seguridad de abajo se respeta lo mismo antes de seguir con el
-                           próximo artículo, que el loop ya intenta solo (misma lógica que
-                           reemplaza cualquier otro salteo). */
-                        if (esTemaDuplicado(resumenIa)) {
-                            log.info("[NEWS-SYNC] Tema ya cubierto hoy, se descarta: {}", titulo);
-                            if (!pausaDeSeguridad()) return;
-                            continue;
-                        }
-
-                        /* Validación de cordura: el modelo puede devolver basura (el caso real
-                           fue el dígito "1" repetido 1.309 veces). Se descarta como si el
-                           scraping hubiera fallado y se sigue con el próximo artículo. La
-                           llamada ya se gastó, así que se respeta la pausa igual. */
-                        String motivoInvalido = motivoTextoInvalido(resumenIa);
-                        if (motivoInvalido != null) {
-                            log.warn("[NEWS-SYNC] Respuesta de Gemini descartada ({}) para: {}", motivoInvalido, titulo);
-                            if (!pausaDeSeguridad()) return;
-                            continue;
-                        }
-
-                        /* Los símbolos avanzados ([ ] + * / < >) solo sobreviven cuando el
-                           texto se pidió como DIFICIL. El gate es sobre el nivel PEDIDO y no
-                           sobre el que devuelva DifficultyScorer, porque la limpieza ocurre
-                           antes de clasificar: al momento de limpiar todavía no existe una
-                           dificultad final. Consecuencia conocida: si se pidió DIFICIL y el
-                           scorer termina diciendo MEDIO, esa noticia puede conservar algún
-                           símbolo avanzado. Es poco frecuente y el texto sigue siendo
-                           tecleable, así que se acepta antes que limpiar dos veces. */
-                        String textoLimpio = TextCleaner.limpiarTexto(
-                                resumenIa, nivelObjetivo == Dificultad.DIFICIL);
-                        Dificultad dificultadCalculada = DifficultyScorer.calcularDificultad(textoLimpio);
-
-                        // Usamos Constants en lugar del número mágico 150
-                        String previewParaFront = textoLimpio.length() > Constants.PALABRAS_RESUMEN_NOTICIA * 3
-                                ? textoLimpio.substring(0, Constants.PALABRAS_RESUMEN_NOTICIA * 3) + "..."
-                                : textoLimpio;
-
-                        // GNews entrega la portada en "image". Puede no venir: en ese caso
-                        // queda null y la tarjeta se dibuja sin foto — comportamiento normal,
-                        // ya soportado por el frontend.
-                        String imagenCruda = (String) art.get("image");
-                        /* Chequeo en el momento de guardar: si el sitio de origen YA bloquea
-                           pedidos externos a esa imagen (protección anti-hotlinking por
-                           Referer — ver WebScraperClient.pareceBloqueoAntiHotlinking), se
-                           guarda sin imagen directamente en vez de guardar un link que nunca
-                           va a cargar en el navegador.
-                           Esto NO cubre el caso de un sitio que bloquea DESPUÉS de que ya
-                           guardamos el link (como pasó con escambray.cu) — para eso está
-                           revisarImagenesBloqueadas(), que corre periódicamente sobre lo ya
-                           guardado. */
-                        String imagenFinal = webScraperClient.pareceBloqueoAntiHotlinking(imagenCruda)
-                                ? null
-                                : imagenCruda;
-
-                        Noticia nuevaNoticia = Noticia.builder()
-                                .titulo(titulo)
-                                .contenidoCompleto(textoLimpio)
-                                .contenidoResumido(previewParaFront)
-                                .categoria(categoria.etiqueta())
-                                .fuente(fuente)
-                                .url(url)
-                                .imagenUrl(imagenFinal)
-                                /* Solo para calibrar el clasificador; se borra a la semana. */
-                                .articuloScrapeado(textoParaPrompt)
-                                .dificultad(dificultadCalculada)
-                                .fechaPublicacion(hoy)
-                                .build();
-
-                        noticiaRepository.save(nuevaNoticia);
-                        nuevasGuardadas++;
-                        guardadasDeEstaCategoria++;
-                        fallosSeguidos = 0; // hubo éxito: se reinicia el contador del corta-circuito
-                        titulosGuardadosHoy.add(titulo); // para que el próximo artículo compare también contra este
-
-                        /* Sube el contador de lo que REALMENTE salió, no el del nivel pedido.
-                           Si se pidió DIFICIL y el artículo no daba para tanto, se guarda como
-                           lo que sea y el cupo de difíciles sigue abierto para el siguiente
-                           artículo — nunca se descarta el texto ni se vuelve a llamar a Gemini
-                           por el mismo (cada llamada cuesta cuota, que es escasa). */
-                        switch (dificultadCalculada) {
-                            case DIFICIL -> dificilesLogrados++;
-                            case MEDIO -> mediosLogrados++;
-                            case FACIL -> facilesLogrados++;
-                        }
-
-                        /* El contador de lo PEDIDO sube acá, recién ahora que la noticia quedó
-                           guardada de verdad. Ver la nota larga donde se elige el nivel: si se
-                           contara antes de llamar a Gemini, un fallo de la API consumiría el
-                           cupo de ese nivel sin producir ninguna noticia. */
-                        switch (nivelObjetivo) {
-                            case DIFICIL -> pedidosDificil++;
-                            case MEDIO -> pedidosMedio++;
-                            case FACIL -> pedidosFacil++;
-                        }
-
-                        /* El conteo de datos del artículo va al log a propósito: los umbrales
-                           MIN_DATOS_ARTICULO_* se fijaron razonando, no midiendo, porque el
-                           texto scrapeado no se guarda. Con este dato en el log, dos o tres
-                           tandas alcanzan para calibrarlos de verdad. */
-                        log.info("Guardado con éxito [{}] (artículo: {} datos → techo {} / pedido: {} / resultó: {}): {}",
-                                categoria.etiqueta(), datosDelArticulo, techoDelArticulo,
-                                nivelObjetivo, dificultadCalculada, titulo);
-
-                        /* Perfil completo del artículo, en líneas aparte para que se pueda
-                           recortar del log y analizar en bloque. Ver PerfilArticulo. */
-                        log.info("  [PERFIL id={}] {}", nuevaNoticia.getId(), perfil.resumenLog());
-                        if (!perfil.ejemplosRaras().isEmpty()) {
-                            log.info("  [PERFIL id={}] raras: {}", nuevaNoticia.getId(),
-                                    String.join(", ", perfil.ejemplosRaras()));
-                        }
-                        for (String zona : perfil.zonasDensas()) {
-                            log.info("  [PERFIL id={}] zona densa: {}", nuevaNoticia.getId(), zona);
-                        }
-
-                        if (!pausaDeSeguridad()) return;
-
-                    } catch (CuotaIaAgotadaException e) {
-                        /* Corte inmediato: la cuota es de la key y no se recupera dentro de
-                           esta tanda. Antes esto caía en el catch genérico de abajo y el
-                           proceso seguía artículo por artículo scrapeando y llamando a una
-                           API que ya solo devolvía 429 — eso es lo que parecía un bucle sin fin. */
-                        log.error("[NEWS-SYNC] Cuota de Gemini agotada. Se aborta la sincronización con {} noticias guardadas.", nuevasGuardadas);
-                        return;
-
-                    } catch (Exception e) {
-                        fallosSeguidos++;
-                        log.error("Error procesando artículo individual ({} seguidos): {}", fallosSeguidos, e.getMessage());
-
-                        if (fallosSeguidos >= Constants.MAX_FALLOS_IA_SEGUIDOS) {
-                            log.error("[NEWS-SYNC] {} fallos seguidos: el problema no es del artículo. Se aborta con {} noticias guardadas.",
-                                    fallosSeguidos, nuevasGuardadas);
-                            return;
-                        }
-                    }
-                }
-
-            } // fin del recorrido de categorias
-
-            log.info("Procesamiento NewsAPI finalizado. Noticias nuevas añadidas: {}", nuevasGuardadas);
-        } finally {
-            candado.soltar();
-        }
-    }
-
     /* ¿La respuesta de Gemini se parece a un texto de verdad?
 
        Se llama ANTES de limpiar y guardar. Corre sobre lo que devolvió el modelo, así que
@@ -1141,6 +803,22 @@ public class NoticiaServiceImpl implements NoticiaService {
         }
     }
 
+    /* Lo que llaman el cron diario y /force-sync: preparar y generar, uno atras del otro.
+
+       @Async se ignora en una llamada desde DENTRO de la misma clase (ver la nota de
+       arriba, en prepararCandidatos) — y es justo lo que hace falta aca. Sin esto, dos
+       metodos @Async llamados seguidos desde OTRA clase (el scheduler, el controller)
+       arrancan cada uno en su propio hilo y generarDesdeCandidatos podria correr antes de
+       que prepararCandidatos termine de dejar los candidatos listos. Auto-invocandolos
+       desde aca, los dos corren SINCRONICOS dentro del mismo hilo de newsTaskExecutor: el
+       segundo no arranca hasta que el primero vuelve. */
+    @Override
+    @Async("newsTaskExecutor")
+    public void ejecutarFlujoCompleto() {
+        prepararCandidatos();
+        generarDesdeCandidatos();
+    }
+
     /* Saca un candidato de la lista preparada porque ya quedo resuelto: se guardo, o se
        descarto por una razon definitiva (no es noticia, sin material, tema duplicado, texto
        invalido). Un candidato que revienta con una excepcion NO pasa por aca a proposito.
@@ -1278,7 +956,7 @@ public class NoticiaServiceImpl implements NoticiaService {
     }
 
     /* Chequeo periódico de imágenes que empezaron a bloquearse DESPUÉS de guardarse —
-       el chequeo de la ingesta (dentro de procesarNoticiasDeApiExternaAsync) solo
+       el chequeo de la ingesta (dentro de generarDesdeCandidatos) solo
        atrapa el bloqueo si ya estaba activo el día que se guardó la noticia. El caso real
        que lo motivó: escambray.cu respondía bien al principio y a los pocos días empezó
        a devolver 403 a cualquier pedido con Referer ajeno.
@@ -1307,57 +985,6 @@ public class NoticiaServiceImpl implements NoticiaService {
         log.info("[IMG-CHECK] Revisión de imágenes terminada: {} revisadas, {} bloqueadas y limpiadas.", revisadas, bloqueadas);
     }
 
-    /* Prioriza el nivel cuya cuota diaria todavía no se llenó, de más difícil a más
-       fácil. Difícil va primero a propósito: es el más dependiente de que el artículo
-       real traiga material (cifras, citas, vocabulario técnico), así que conviene darle
-       la primera oportunidad sobre la mayor cantidad de artículos posible. Cuando las
-       tres cuotas están llenas —puede pasar si un día se guarda de más— cae a MEDIO,
-       que es el punto intermedio razonable. */
-    /* Cuántas noticias puede procesar la corrida antes de cortar.
-
-       Normalmente es MAX_NOTICIAS_POR_DIA a secas. Pero si la tanda llegó al tope SIN
-       haber conseguido ninguna DIFICIL, se permiten hasta INTENTOS_EXTRA_DIFICIL
-       artículos más: elegirNivelObjetivo ya los va a pedir como DIFICIL (prioriza el
-       nivel cuya cuota falta), así que esos intentos extra son específicamente para
-       cazar la difícil que no salió.
-
-       Se recalcula en cada vuelta a propósito: apenas una noticia sale DIFICIL, este
-       método vuelve a devolver el tope normal y la corrida corta en la siguiente
-       comprobación. O sea que los intentos extra solo se gastan si de verdad hacen falta.
-
-       Nota para producción: con la cuota real (3 difíciles de 10) esto se comporta
-       igual — cede el tope solo mientras falten difíciles. */
-    private int topeEfectivo(int dificilesLogrados) {
-        if (dificilesLogrados >= Constants.CUOTA_NOTICIAS_DIFICIL) {
-            return Constants.MAX_NOTICIAS_POR_DIA;
-        }
-        return Constants.MAX_NOTICIAS_POR_DIA + Constants.INTENTOS_EXTRA_DIFICIL;
-    }
-
-    /* ¿El artículo ORIGINAL trae material para sostener un resumen DIFICIL?
-
-       Se mira la materia prima ANTES de decidir qué pedirle a Gemini. La regla de
-       fidelidad prohíbe inventar cifras y también borrarlas, así que pedirle DIFICIL a
-       una nota de prosa limpia, o FACIL a una crónica bursátil, es pelear contra el
-       artículo: Gemini obedece pero el resultado no puede cumplir el nivel.
-
-       Dos señales, cualquiera alcanza:
-       - densidad de dígitos por encima del umbral (fechas, cifras, resultados);
-       - presencia de %, $ o EUR, que son de por sí tecleo incómodo.
-       No se miran comillas ni paréntesis: aparecen en casi cualquier página por el
-       marcado y el ruido de navegación, así que no distinguen nada. */
-    /* ¿El artículo ORIGINAL trae material de sobra (cifras, fechas, datos)?
-
-       Se usa para lo contrario de lo que suena: un artículo que NO es rico es candidato
-       natural al nivel FACIL. Ese es hoy el único emparejamiento que hace
-       elegirNivelObjetivo — ver la nota ahí.
-
-       El mínimo de símbolos NO es uno solo (como era hasta el 19-ago-2026, con
-       `contains`): casi cualquier página trae algún % o $ suelto en publicidad, menú o
-       pie, y con la condición vieja ese ruido bastaba para marcar RICO un artículo de
-       prosa limpia. Medido: la nota de la media maratón tenía 1 símbolo perdido y la de
-       specs de celulares también 1 — indistinguibles, pese a que una tenía 5 veces más
-       densidad de dígitos que la otra. */
     /* Formatos que se publican todos los días con la misma plantilla y que GNews devuelve
        como si fueran noticias: la solución del Wordle, el horóscopo, los números de la
        lotería, el crucigrama, la programación de TV.
@@ -1396,49 +1023,6 @@ public class NoticiaServiceImpl implements NoticiaService {
         return false;
     }
 
-    /* Elige qué nivel pedirle a Gemini para ESTE artículo.
-
-       Dos entradas: lo que el scorer YA CONFIRMÓ en esta jornada (no lo que se pidió), y
-       el techo que impone el artículo.
-
-       POR QUÉ SE CUENTA LO LOGRADO. Si se pide DIFICIL y sale MEDIO, el cupo de difíciles
-       tiene que seguir abierto: lo que interesa es la distribución REAL de la portada, no
-       cuántas veces se intentó. Contando lo pedido, un nivel que nunca sale se da por
-       cumplido igual y la portada queda desbalanceada.
-
-       POR QUÉ HAY UN TOPE DE INTENTOS. Contar lo logrado, a secas, es lo que causó el bug
-       del 18-ago-2026: como el scorer no confirmaba MEDIO, la condición "faltan medios"
-       quedaba verdadera para siempre y la tanda pedía MEDIO en bucle sin llegar nunca a
-       pedir FACIL. Con el tope, un nivel que no se logra cede el turno después de
-       MAX_INTENTOS_EXTRA_POR_NIVEL intentos por encima de su cuota.
-
-       POR QUÉ MANDA EL TECHO DEL ARTÍCULO. Pedirle un nivel que su contenido no puede
-       sostener no produce ese nivel: produce uno más fácil y gasta la llamada igual. */
-    private Dificultad elegirNivelObjetivo(int logradosDificil, int logradosMedio, int logradosFacil,
-            int pedidosDificil, int pedidosMedio, int pedidosFacil,
-            Dificultad techoDelArticulo) {
-
-        boolean faltaDificil = logradosDificil < Constants.CUOTA_NOTICIAS_DIFICIL
-                && pedidosDificil < Constants.CUOTA_NOTICIAS_DIFICIL + Constants.MAX_INTENTOS_EXTRA_POR_NIVEL;
-        boolean faltaMedio = logradosMedio < Constants.CUOTA_NOTICIAS_MEDIO
-                && pedidosMedio < Constants.CUOTA_NOTICIAS_MEDIO + Constants.MAX_INTENTOS_EXTRA_POR_NIVEL;
-        boolean faltaFacil = logradosFacil < Constants.CUOTA_NOTICIAS_FACIL
-                && pedidosFacil < Constants.CUOTA_NOTICIAS_FACIL + Constants.MAX_INTENTOS_EXTRA_POR_NIVEL;
-
-        /* Orden de prioridad, acotado por lo que el artículo puede sostener: DIFICIL
-           primero porque es el que más depende de la materia prima, MEDIO después porque
-           siempre se puede bajar pero nunca subir. */
-        if (techoDelArticulo == Dificultad.DIFICIL && faltaDificil) return Dificultad.DIFICIL;
-        if (techoDelArticulo != Dificultad.FACIL && faltaMedio) return Dificultad.MEDIO;
-        if (faltaFacil) return Dificultad.FACIL;
-
-        /* Ningún nivel con cupo que este artículo pueda sostener. Se pide lo máximo que dé:
-           el texto se guarda igual y el scorer decide dónde entra. No se descarta el
-           artículo porque la llamada a Gemini ya es lo caro y todavía no se hizo — descartar
-           acá solo dejaría la jornada más corta. */
-        return techoDelArticulo;
-    }
-
     /* A qué nivel puede "caer" un artículo al que se le pidió DIFICIL pero que no tiene
        material para serlo (sin cifras, sin datos técnicos, sin citas).
 
@@ -1461,8 +1045,8 @@ public class NoticiaServiceImpl implements NoticiaService {
        parámetros son los mismos que en reglasDeNivel — si se cambian allá, cambiarlos acá. */
     private String estiloResumido(Dificultad nivel) {
         return switch (nivel) {
-            /* MEDIO_DIFICIL es un resultado del scorer, no un nivel que se pida: ni
-               elegirNivelObjetivo ni repartirNiveles lo producen jamas. Si llega hasta aca
+            /* MEDIO_DIFICIL es un resultado del scorer, no un nivel que se pida:
+               repartirNiveles no lo produce jamas. Si llega hasta aca
                es que alguien rompio esa invariante, y conviene enterarse en el momento y no
                con una tanda entera de textos pedidos a un nivel inexistente. El fallo lo
                atrapa el try/catch por articulo, asi que no tumba el proceso de golpe. */
@@ -1501,8 +1085,8 @@ public class NoticiaServiceImpl implements NoticiaService {
        seguidos aborto la tanda. Si se agrega texto con % a este nivel, duplicarlo. */
     private String reglasDeNivel(Dificultad nivel, Dificultad respaldo) {
         return switch (nivel) {
-            /* MEDIO_DIFICIL es un resultado del scorer, no un nivel que se pida: ni
-               elegirNivelObjetivo ni repartirNiveles lo producen jamas. Si llega hasta aca
+            /* MEDIO_DIFICIL es un resultado del scorer, no un nivel que se pida:
+               repartirNiveles no lo produce jamas. Si llega hasta aca
                es que alguien rompio esa invariante, y conviene enterarse en el momento y no
                con una tanda entera de textos pedidos a un nivel inexistente. El fallo lo
                atrapa el try/catch por articulo, asi que no tumba el proceso de golpe. */

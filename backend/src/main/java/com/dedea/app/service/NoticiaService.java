@@ -15,18 +15,16 @@ public interface NoticiaService {
     NoticiaDTO obtenerNoticiaAleatoriaInedita(String identificadorTemporal, String categoria, String dificultad);
 
 
-    void procesarNoticiasDeApiExternaAsync();
-
     /* Si ya hay una sincronización en curso, devuelve hace cuánto empezó; null si no la hay.
 
        Existe para que el controlador no responda "iniciada" cuando el candado va a rechazar
-       la llamada. Los tres endpoints son @Async: devuelven al instante, así que sin esto la
+       la llamada. Los endpoints son @Async: devuelven al instante, así que sin esto la
        única forma de enterarse de que no arrancó nada era mirar el log. */
     String sincronizacionEnCurso();
 
     /* Chequeo periódico de bloqueos anti-hotlinking en imágenes ya guardadas: el caso de
        escambray.cu, que respondía bien cuando se guardó la noticia y empezó a bloquear
-       días después. El chequeo de ingesta (dentro de procesarNoticiasDeApiExternaAsync)
+       días después. El chequeo de ingesta (dentro de generarDesdeCandidatos)
        no alcanza para esto porque el bloqueo apareció DESPUÉS de guardar. */
     void revisarImagenesBloqueadas();
 
@@ -47,4 +45,11 @@ public interface NoticiaService {
     /* PASO 2: pide el resumen de cada candidato preparado y los guarda. Una llamada a
        Gemini por noticia. */
     void generarDesdeCandidatos();
+
+    /* Corre el flujo completo de un tirón: preparar candidatos y, apenas termina,
+       generar los resúmenes — en ese orden, dentro del MISMO hilo async, para que el
+       segundo paso nunca arranque antes de que el primero deje candidatos listos.
+       Es lo que usan el cron diario y /force-sync; /preparar y /generar por separado
+       siguen sirviendo para probar o revisar una tanda a mano, paso por paso. */
+    void ejecutarFlujoCompleto();
 }

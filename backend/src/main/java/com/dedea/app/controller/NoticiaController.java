@@ -95,7 +95,7 @@ public class NoticiaController {
                     "Ya hay una sincronización en curso (" + enCurso + "). No se disparó otra.", null));
         }
 
-        noticiaService.procesarNoticiasDeApiExternaAsync();
+        noticiaService.ejecutarFlujoCompleto();
         return ResponseEntity.ok(GenericResponse.success("Sincronización iniciada en segundo plano.", null));
     }
 

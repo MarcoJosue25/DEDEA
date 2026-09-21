@@ -20,21 +20,12 @@ public final class Constants {
     al usuario (objeto) si no al sistema (la clase). Se carga una sola vez cuando arranca el servidor
     Final significa inmutable, no se puede cambiar los valores mientras la app corre
     --- NOTICIAS E IA ---*/
-    /* ===== MODO PRUEBAS ACTIVO — REVERTIR ANTES DE PUBLICAR =====
-       Tanda de CALIBRACIÓN (22-ago-2026): 15 noticias, 5 de cada nivel, para juntar
-       muestras y comparar contra las 19 del 21-ago. El tamaño no es para esquivar la
-       cuota: es diseño experimental — se quiere el mismo número de casos por nivel para
-       que la comparación no quede sesgada hacia el nivel más frecuente.
-
-       objetivoDelDia = min(NOTICIAS_POR_CATEGORIA x 5 categorías, MAX_NOTICIAS_POR_DIA)
-       = min(3 x 5, 15) = 15. Las tres cuotas en 5 reparten esas 15 entre los niveles.
-
-       Para producción: MAX_NOTICIAS_POR_DIA = 30 y NOTICIAS_POR_CATEGORIA = 2, que con
-       las 5 categorías de NoticiaServiceImpl.CATEGORIAS dan las 10 noticias de la
-       portada. NO hay que tocar nada de NoticiaServiceImpl al revertir — ver el aviso
-       de CLAUDE.md 10.15. */
-    public static final int MAX_NOTICIAS_POR_DIA = 10;     // PRODUCCIÓN: 30
-    public static final int NOTICIAS_POR_CATEGORIA = 2;    // PRODUCCIÓN: 2
+    /* PRODUCCIÓN (revertido el 21-sep-2026): objetivoDelDia = min(NOTICIAS_POR_CATEGORIA x
+       5 categorías, MAX_NOTICIAS_POR_DIA) = min(2 x 5, 30) = 10, las 10 noticias de la
+       portada. El tope de 30 no llega a pisar nada — lo que de verdad acota el día son
+       las 5 categorías x 2 — pero se deja en su valor real para que la constante no mienta. */
+    public static final int MAX_NOTICIAS_POR_DIA = 30;
+    public static final int NOTICIAS_POR_CATEGORIA = 2;
 
     /* ===== FLUJO EN DOS PASOS (24-ago-2026) =====
 
@@ -161,29 +152,10 @@ public final class Constants {
        esto no existía —el prompt no pedía ningún nivel— y el 12-ago-2026 salieron 9
        DIFICIL y 1 MEDIO en la jornada entera, sin una sola FACIL.
 
-       ===== MODO PRUEBAS ACTIVO — REVERTIR ANTES DE PUBLICAR =====
-       Con 1/1/1 cada corrida de prueba trae una muestra de los tres niveles con solo 3
-       llamadas a Gemini. En producción van 3/4/3, que suman las 10 de la portada. */
-    public static final int CUOTA_NOTICIAS_DIFICIL = 3;    // PRODUCCIÓN: 3
-    public static final int CUOTA_NOTICIAS_MEDIO = 4;      // PRODUCCIÓN: 4
-    public static final int CUOTA_NOTICIAS_FACIL = 3;      // PRODUCCIÓN: 3
-
-    /* Artículos EXTRA que se permite procesar por encima de MAX_NOTICIAS_POR_DIA cuando
-       la cuota de DIFICIL todavía no se cumplió al llegar al tope.
-
-       Sin esto, si todos los artículos de la tanda vuelven clasificados MEDIO, la
-       corrida termina sin una sola noticia difícil — y la difícil es justo la que hace
-       falta para probar que el prompt de ese nivel funciona.
-
-       EN 0 DURANTE LA TANDA DE CALIBRACIÓN (22-ago-2026). Con valor 2, topeEfectivo()
-       deja procesar 2 artículos por encima del tope mientras no se hayan LOGRADO 5
-       difíciles, y esos dos extra se piden como DIFICIL (fase EXTRA de
-       elegirNivelObjetivo). Eso daría 7 pedidos de DIFICIL contra 5 de los otros
-       niveles y arruinaría el reparto parejo que la calibración necesita.
-
-       Con 0, topeEfectivo() devuelve siempre MAX_NOTICIAS_POR_DIA y se piden exactamente
-       5 de cada nivel. Al volver a producción hay que devolverlo a 2. */
-    public static final int INTENTOS_EXTRA_DIFICIL = 0;    // PRODUCCIÓN: 2
+       Valores de producción: 3/4/3, que suman las 10 de la portada. */
+    public static final int CUOTA_NOTICIAS_DIFICIL = 3;
+    public static final int CUOTA_NOTICIAS_MEDIO = 4;
+    public static final int CUOTA_NOTICIAS_FACIL = 3;
 
     /* CUÁNTOS DATOS NUMÉRICOS tiene que traer el ARTÍCULO para que valga la pena pedirle
        a Gemini un resumen de cada nivel. Un "dato numérico" es un grupo de dígitos
@@ -218,18 +190,6 @@ public final class Constants {
        Permisivo arriba, verificado abajo: si con 5 entra alguno que no rinde, Gemini lo lee
        y devuelve MARCADOR_SIN_MATERIAL. Es mejor que un umbral alto, que descarta a ciegas. */
     public static final int MIN_DATOS_ARTICULO_DIFICIL = 5;
-
-    /* Cuántas veces se puede PEDIR un mismo nivel antes de pasar al siguiente, por encima
-       de su cuota.
-
-       Existe porque los contadores que deciden el nivel cuentan lo que el scorer CONFIRMÓ,
-       no lo que se pidió: así, si se pide DIFICIL y sale MEDIO, el cupo de difíciles sigue
-       abierto y se vuelve a intentar. Eso es lo que se quiere.
-
-       Pero sin tope reaparece el bug del 18-ago-2026: si el nivel nunca se logra, su
-       condición "faltan" queda verdadera para siempre y la tanda pide ese nivel en bucle
-       sin llegar nunca a los otros. Con el tope, un nivel que no sale cede el turno. */
-    public static final int MAX_INTENTOS_EXTRA_POR_NIVEL = 2;
 
     /* Cuántos %, $ o € tiene que traer el artículo para considerarlo material de DIFICIL
        por sí solos, sin mirar la densidad de dígitos.

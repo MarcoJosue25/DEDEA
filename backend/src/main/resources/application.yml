@@ -72,10 +72,11 @@ app:
       project: project-42a112e5-9207-4822-89f
       location: global
   scheduler:
-    cron: "0 0 8,20 * * *"
+    # Hora de Lima (zone en @Scheduled, NewsScheduler): una sola corrida al día, a las 9:00.
+    cron: "0 0 9 * * *"
     # Revisión de imágenes por bloqueo anti-hotlinking (WebScraperClient.pareceBloqueoAntiHotlinking):
-    # todos los días a las 7:00, antes de la carga de noticias de las 8:00.
-    cron-imagenes: "0 0 7 * * *"
+    # todos los días a las 8:00 hora de Lima, una hora antes de la carga de noticias de las 9:00.
+    cron-imagenes: "0 0 8 * * *"
   ngram:
     umbral-error: 0.30
     min-intentos: 5
